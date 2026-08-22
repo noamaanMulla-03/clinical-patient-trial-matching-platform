@@ -8,9 +8,10 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 from uuid import UUID, uuid4
 
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,7 +19,13 @@ from app.db.models import Patient, PatientFactRecord, PatientImport, Trial, Tria
 from app.fhir.importer import FHIR_R4_VERSION, normalize_patient_resource
 from app.fhir.safety import require_synthetic_fhir_bundle
 from app.fhir.schemas import (
+    ClinicalCode,
+    DataQualityIssue,
+    FactNormalization,
     FHIRImportRequest,
+    FHIRProvenance,
+    ImportDataQualityIssue,
+    PatientFactKind,
     PatientFactResponse,
     PatientFactValue,
     PatientImportSnapshotResponse,
@@ -39,7 +46,7 @@ class PatientImportResult:
     patient_id: str
     patient_import_id: UUID
     fact_ids: tuple[str, ...]
-    data_quality_issues: tuple[dict[str, Any], ...]
+    data_quality_issues: tuple[ImportDataQualityIssue, ...]
 
 
 def canonical_json_snapshot(value: Mapping[str, Any]) -> tuple[dict[str, Any], str]:
@@ -123,10 +130,7 @@ async def persist_synthetic_patient_import(
         patient_id=normalized_patient.patient_id,
         patient_import_id=patient_import_id,
         fact_ids=tuple(fact.fact_id for fact in normalized_patient.facts),
-        data_quality_issues=tuple(
-            issue.model_dump(mode="json")
-            for issue in normalized_patient.data_quality_issues
-        ),
+        data_quality_issues=normalized_patient.data_quality_issues,
     )
 
 
@@ -175,20 +179,26 @@ async def retrieve_patient_timeline(
             source_hash=patient_import.source_hash,
             created_at=patient_import.created_at,
             completed_at=patient_import.completed_at,
-            data_quality_issues=patient_import.data_quality,
+            data_quality_issues=[
+                ImportDataQualityIssue.model_validate(issue)
+                for issue in patient_import.data_quality
+            ],
         ),
         facts=[
             PatientFactResponse(
                 fact_id=fact.id,
-                kind=fact.kind,
-                code=fact.code,
+                kind=cast(PatientFactKind, fact.kind),
+                code=ClinicalCode.model_validate(fact.code),
                 value=fact.value,
                 unit=fact.unit,
                 effective_at=fact.effective_at,
-                source=fact.provenance,
+                source=FHIRProvenance.model_validate(fact.provenance),
                 source_resource=fact.source_resource,
-                normalization=fact.normalization,
-                quality_issues=fact.quality_issues,
+                normalization=FactNormalization.model_validate(fact.normalization),
+                quality_issues=[
+                    DataQualityIssue.model_validate(issue)
+                    for issue in fact.quality_issues
+                ],
             )
             for fact in facts
         ],
@@ -197,7 +207,7 @@ async def retrieve_patient_timeline(
 
 def _fact_value_for_storage(value: PatientFactValue | None) -> Any | None:
     """Serialize structured fact values for JSONB without changing scalar values."""
-    return value.model_dump(mode="json") if hasattr(value, "model_dump") else value
+    return value.model_dump(mode="json") if isinstance(value, BaseModel) else value
 
 
 async def store_trial_version(

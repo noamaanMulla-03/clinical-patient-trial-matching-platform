@@ -7,7 +7,7 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from app.fhir.schemas import (
@@ -18,6 +18,7 @@ from app.fhir.schemas import (
     DateNormalization,
     FactNormalization,
     FHIRProvenance,
+    FHIRResourceType,
     ImportDataQualityIssue,
     MedicationFactValue,
     ObservationFactValue,
@@ -35,6 +36,10 @@ _FHIR_YEAR_PATTERN = re.compile(r"\d{4}")
 _FHIR_MONTH_PATTERN = re.compile(r"\d{4}-\d{2}")
 _PATIENT_STRUCTURE_SYSTEM = "http://hl7.org/fhir/StructureDefinition/Patient"
 _STALE_FACT_AGE = timedelta(days=365)
+_MEDICATION_DATE_FIELDS: tuple[tuple[FHIRResourceType, tuple[str, ...]], ...] = (
+    ("MedicationStatement", ("effectiveDateTime", "dateAsserted")),
+    ("MedicationRequest", ("authoredOn",)),
+)
 
 
 class FHIRPatientNormalizationError(ValueError):
@@ -276,10 +281,7 @@ def _medication_facts(
 ) -> list[PatientFact]:
     """Normalize codeable medication statements and requests without resolving refs."""
     facts: list[PatientFact] = []
-    for resource_type, date_fields in (
-        ("MedicationStatement", ("effectiveDateTime", "dateAsserted")),
-        ("MedicationRequest", ("authoredOn",)),
-    ):
+    for resource_type, date_fields in _MEDICATION_DATE_FIELDS:
         for medication in _resources_of_type(bundle, resource_type):
             effective_date = _first_string_field(medication, date_fields)
             facts.extend(
@@ -383,7 +385,7 @@ def _resources_of_type(
 def _coded_resource_facts(
     resource: Mapping[str, Any],
     *,
-    resource_type: str,
+    resource_type: FHIRResourceType,
     kind: PatientFactKind,
     patient_id: str,
     patient_references: frozenset[str],
@@ -486,12 +488,11 @@ def _coded_status(resource: Mapping[str, Any], field_name: str) -> str | None:
     if not isinstance(codings, list):
         return None
     for coding in codings:
-        if (
-            isinstance(coding, Mapping)
-            and isinstance(coding.get("code"), str)
-            and coding["code"].strip()
-        ):
-            return coding["code"]
+        if not isinstance(coding, Mapping):
+            continue
+        code = coding.get("code")
+        if isinstance(code, str) and code.strip():
+            return code
     return None
 
 
@@ -596,7 +597,7 @@ def _normalized_quantity(quantity: Any) -> QuantityNormalization | None:
 
 def _source_resource_copy(resource: Mapping[str, Any]) -> dict[str, Any]:
     """Deep-copy JSON FHIR so future callers cannot mutate a fact's evidence."""
-    return json.loads(json.dumps(resource))
+    return cast(dict[str, Any], json.loads(json.dumps(resource)))
 
 
 def _patient_demographic_issues(
@@ -692,9 +693,9 @@ def _base_quality_issues(
                     ),
                 )
             )
-        elif date_normalization.normalized_date <= (
-            evaluated_at.date() - _STALE_FACT_AGE
-        ):
+        elif (
+            normalized_date := date_normalization.normalized_date
+        ) is not None and normalized_date <= (evaluated_at.date() - _STALE_FACT_AGE):
             issues.append(
                 DataQualityIssue(
                     code="stale",
@@ -768,7 +769,14 @@ def _conflicting_observation_fact_ids(facts: list[PatientFact]) -> set[str]:
     return {
         fact.fact_id
         for observation_facts in observations.values()
-        if len({fact.value.numeric_value for fact in observation_facts}) > 1
+        if len(
+            {
+                fact.value.numeric_value
+                for fact in observation_facts
+                if isinstance(fact.value, ObservationFactValue)
+            }
+        )
+        > 1
         for fact in observation_facts
     }
 
