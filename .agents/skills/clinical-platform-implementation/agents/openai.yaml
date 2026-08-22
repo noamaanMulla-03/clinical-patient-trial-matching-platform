@@ -1,0 +1,6 @@
+interface:
+  display_name: "Clinical Platform Implementation"
+  short_description: "Implement safe clinical platform changes"
+  default_prompt: "Use $clinical-platform-implementation to implement this feature safely."
+policy:
+  allow_implicit_invocation: true

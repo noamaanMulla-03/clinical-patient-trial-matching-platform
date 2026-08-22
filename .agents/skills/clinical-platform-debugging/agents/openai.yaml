@@ -1,0 +1,6 @@
+interface:
+  display_name: "Clinical Platform Debugging"
+  short_description: "Trace frontend-to-backend failures"
+  default_prompt: "Use $clinical-platform-debugging to diagnose this issue before fixing it."
+policy:
+  allow_implicit_invocation: true
