@@ -15,6 +15,7 @@ repository_root = Path(__file__).resolve().parents[1]
 api_path = repository_root / "apps" / "api"
 sys.path.insert(0, str(api_path))
 
+import app.db.models  # noqa: E402, F401
 from app.db.base import Base  # noqa: E402
 
 config = context.config

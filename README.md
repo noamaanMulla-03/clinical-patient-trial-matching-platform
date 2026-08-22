@@ -101,11 +101,6 @@ npm run typecheck
 npm run test
 ```
 
-## Project documents
-
-- [Technical design](clinical-trial-patient-matching-README.md)
-- [Implementation roadmap](IMPLEMENTATION_ROADMAP.md)
-
 ## Core safety rule
 
 Missing, ambiguous, conflicting, stale, or unsupported evidence must result in `unknown` or `needs_review`—never a reassuring match outcome.
