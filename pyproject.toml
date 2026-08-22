@@ -1,0 +1,28 @@
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+extend-exclude = ["migrations/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.mypy]
+python_version = "3.12"
+mypy_path = ["apps/api"]
+files = ["apps/api/app"]
+strict = true
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["apps/api"]
+addopts = "-ra --strict-config --strict-markers"
+markers = [
+  "integration: test requiring external infrastructure such as PostgreSQL or Redis",
+  "contract: test validating an external API or schema contract",
+  "security: test focused on unsafe or malicious input handling",
+  "evaluation: benchmark or quality-measurement test",
+]
