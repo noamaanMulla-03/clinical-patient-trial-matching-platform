@@ -8,8 +8,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_database_session
 from app.errors import OPENAPI_REQUEST_ID_RESPONSE_HEADER, APIError, APIErrorResponse
 from app.fhir.importer import FHIRPatientNormalizationError
-from app.fhir.schemas import FHIRImportRequest, FHIRImportResponse
-from app.services.source_snapshots import persist_synthetic_patient_import
+from app.fhir.schemas import (
+    FHIRImportRequest,
+    FHIRImportResponse,
+    PatientTimelineResponse,
+)
+from app.services.source_snapshots import (
+    persist_synthetic_patient_import,
+    retrieve_patient_timeline,
+)
 
 router = APIRouter(tags=["patients"])
 DatabaseSession = Annotated[AsyncSession, Depends(get_database_session)]
@@ -55,4 +62,39 @@ async def import_synthetic_fhir_bundle(
         patient_id=result.patient_id,
         patient_import_id=result.patient_import_id,
         fact_ids=list(result.fact_ids),
+        data_quality_issues=list(result.data_quality_issues),
     )
+
+
+@router.get(
+    "/patients/{patient_id}",
+    operation_id="get_synthetic_patient_timeline",
+    response_model=PatientTimelineResponse,
+    summary="Retrieve the latest completed synthetic patient timeline",
+    responses={
+        200: {"headers": {"X-Request-ID": OPENAPI_REQUEST_ID_RESPONSE_HEADER}},
+        404: {
+            "description": "Synthetic patient was not found.",
+            "model": APIErrorResponse,
+            "headers": {"X-Request-ID": OPENAPI_REQUEST_ID_RESPONSE_HEADER},
+        },
+        500: {
+            "description": "Unexpected server error.",
+            "model": APIErrorResponse,
+            "headers": {"X-Request-ID": OPENAPI_REQUEST_ID_RESPONSE_HEADER},
+        },
+    },
+)
+async def get_synthetic_patient_timeline(
+    patient_id: str,
+    session: DatabaseSession,
+) -> PatientTimelineResponse:
+    """Expose source-linked facts from one completed import without merging imports."""
+    timeline = await retrieve_patient_timeline(session, patient_id)
+    if timeline is None:
+        raise APIError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="patient.not_found",
+            message="Synthetic patient was not found.",
+        )
+    return timeline

@@ -1,0 +1,33 @@
+{
+  "source": {
+    "generator": "Synthea",
+    "archive_url": "https://raw.githubusercontent.com/synthetichealth/synthea-sample-data/main/downloads/synthea_sample_data_fhir_r4_nov2021.zip",
+    "archive_sha256": "6d3c5433bcae4791bc5c30469d1445b430fb4894d5c13bda15fee0584bbd7778",
+    "fhir_version": "R4",
+    "source_archive_date": "2021-11-19"
+  },
+  "preparation": {
+    "script": "datasets/scripts/prepare_synthea_fixtures.py",
+    "added_bundle_tag": {
+      "system": "urn:clinical-trial-matcher:data-classification",
+      "code": "synthetic-data"
+    }
+  },
+  "fixtures": [
+    {
+      "path": "synthea-r4-patient-01.json",
+      "archive_entry": "fhir/Buddy254_Gislason620_e4c43a21-11b3-d96d-ede9-0c71e8cb1574.json",
+      "prepared_sha256": "11bfef778caef2d403e89041ea89934092ea9f4348b1981aa19176cee45ffc67"
+    },
+    {
+      "path": "synthea-r4-patient-02.json",
+      "archive_entry": "fhir/Teddy976_Batz141_dae01f0d-6147-47e0-bd58-bb20569a283c.json",
+      "prepared_sha256": "30f1bca0632c2a2803cfa21115c6bc4ef4e055b9647212294b2074ce6b723c65"
+    },
+    {
+      "path": "synthea-r4-patient-03.json",
+      "archive_entry": "fhir/Katie634_Feest103_ae687024-df69-5d7f-cfa7-2333b6b72279.json",
+      "prepared_sha256": "883775fc3286aa05b8ad9d32d57f9a5de354528ab93fe963be8027f1cca13085"
+    }
+  ]
+}

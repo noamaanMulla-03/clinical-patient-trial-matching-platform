@@ -1,0 +1,45 @@
+{
+  "resourceType": "Bundle",
+  "meta": {
+    "tag": [
+      {
+        "system": "urn:clinical-trial-matcher:data-classification",
+        "code": "synthetic-data",
+        "display": "Synthetic data approved for research and demonstration"
+      }
+    ]
+  },
+  "entry": [
+    {
+      "fullUrl": "urn:uuid:edge-conflicting-labs",
+      "resource": {
+        "resourceType": "Patient",
+        "id": "edge-conflicting-labs",
+        "gender": "female",
+        "birthDate": "1975-01-01"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "hemoglobin-first",
+        "subject": {"reference": "urn:uuid:edge-conflicting-labs"},
+        "code": {"coding": [{"system": "http://loinc.org", "code": "718-7"}]},
+        "valueQuantity": {"value": 11.2, "unit": "g/dL"},
+        "status": "final",
+        "effectiveDateTime": "2025-01-01T00:00:00Z"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "hemoglobin-second",
+        "subject": {"reference": "urn:uuid:edge-conflicting-labs"},
+        "code": {"coding": [{"system": "http://loinc.org", "code": "718-7"}]},
+        "valueQuantity": {"value": 13.1, "unit": "g/dL"},
+        "status": "final",
+        "effectiveDateTime": "2025-01-01T00:00:00Z"
+      }
+    }
+  ]
+}

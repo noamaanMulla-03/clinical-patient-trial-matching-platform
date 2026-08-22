@@ -1,0 +1,55 @@
+{
+  "resourceType": "Bundle",
+  "meta": {
+    "tag": [
+      {
+        "system": "urn:clinical-trial-matcher:data-classification",
+        "code": "synthetic-data",
+        "display": "Synthetic data approved for research and demonstration"
+      }
+    ]
+  },
+  "entry": [
+    {
+      "fullUrl": "urn:uuid:edge-multiple-units",
+      "resource": {
+        "resourceType": "Patient",
+        "id": "edge-multiple-units",
+        "gender": "male",
+        "birthDate": "1985-01-01"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "glucose-mg-dl",
+        "subject": {"reference": "urn:uuid:edge-multiple-units"},
+        "code": {"coding": [{"system": "http://loinc.org", "code": "2345-7"}]},
+        "valueQuantity": {
+          "value": 100,
+          "unit": "mg/dL",
+          "system": "http://unitsofmeasure.org",
+          "code": "mg/dL"
+        },
+        "status": "final",
+        "effectiveDateTime": "2025-01-01T00:00:00Z"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "glucose-mmol-l",
+        "subject": {"reference": "urn:uuid:edge-multiple-units"},
+        "code": {"coding": [{"system": "http://loinc.org", "code": "2345-7"}]},
+        "valueQuantity": {
+          "value": 5.6,
+          "unit": "mmol/L",
+          "system": "http://unitsofmeasure.org",
+          "code": "mmol/L"
+        },
+        "status": "final",
+        "effectiveDateTime": "2025-02-01T00:00:00Z"
+      }
+    }
+  ]
+}

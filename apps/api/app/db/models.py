@@ -45,7 +45,7 @@ class Patient(Base):
 
 
 class PatientImport(Base):
-    """An immutable source Bundle with mutable processing status and completion time."""
+    """An immutable source Bundle and its explicit import-time data-quality findings."""
 
     __tablename__ = "patient_imports"
     __table_args__ = (
@@ -65,6 +65,9 @@ class PatientImport(Base):
     fhir_version: Mapped[str] = mapped_column(String(32), nullable=False)
     source_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     source_bundle: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    data_quality: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, nullable=False, server_default="[]"
+    )
     status: Mapped[str] = mapped_column(
         String(16), nullable=False, server_default="queued"
     )
@@ -96,6 +99,13 @@ class PatientFactRecord(Base):
     unit: Mapped[str | None] = mapped_column(String(64))
     effective_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     provenance: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    source_resource: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    normalization: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, server_default="{}"
+    )
+    quality_issues: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, nullable=False, server_default="[]"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

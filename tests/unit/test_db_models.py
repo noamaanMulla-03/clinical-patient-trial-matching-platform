@@ -32,6 +32,9 @@ def test_patient_facts_link_to_the_source_import_and_preserve_provenance() -> No
         "unit",
         "effective_at",
         "provenance",
+        "source_resource",
+        "normalization",
+        "quality_issues",
         "created_at",
     }
     assert {

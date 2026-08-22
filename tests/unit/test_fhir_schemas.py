@@ -61,6 +61,11 @@ def test_patient_fact_preserves_clinical_value_time_code_and_fhir_provenance() -
             resource_id="obs-42",
             version_id="7",
         ),
+        source_resource={
+            "resourceType": "Observation",
+            "id": "obs-42",
+            "valueQuantity": {"value": 11.2, "unit": "g/dL"},
+        },
     )
 
     assert fact.model_dump(mode="json") == {
@@ -80,6 +85,13 @@ def test_patient_fact_preserves_clinical_value_time_code_and_fhir_provenance() -
             "resource_id": "obs-42",
             "version_id": "7",
         },
+        "source_resource": {
+            "resourceType": "Observation",
+            "id": "obs-42",
+            "valueQuantity": {"value": 11.2, "unit": "g/dL"},
+        },
+        "normalization": {"date": None, "quantity": None},
+        "quality_issues": [],
     }
 
 
@@ -90,6 +102,7 @@ def test_patient_fact_allows_code_only_facts_without_inventing_a_value() -> None
         kind="condition",
         code=ClinicalCode(system="http://snomed.info/sct", value="44054006"),
         source=FHIRProvenance(resource_type="Condition", resource_id="condition-5"),
+        source_resource={"resourceType": "Condition", "id": "condition-5"},
     )
 
     assert fact.value is None
@@ -105,6 +118,7 @@ def test_patient_fact_requires_traceable_supported_fhir_provenance() -> None:
             kind="observation",
             code=ClinicalCode(system="http://loinc.org", value="718-7"),
             source={"resource_type": "DiagnosticReport", "resource_id": "report-1"},
+            source_resource={"resourceType": "DiagnosticReport", "id": "report-1"},
         )
 
     issue = caught_error.value.errors(include_input=False)[0]

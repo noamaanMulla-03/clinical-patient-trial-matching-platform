@@ -1,0 +1,36 @@
+{
+  "resourceType": "Bundle",
+  "meta": {
+    "tag": [
+      {
+        "system": "urn:clinical-trial-matcher:data-classification",
+        "code": "synthetic-data",
+        "display": "Synthetic data approved for research and demonstration"
+      }
+    ]
+  },
+  "entry": [
+    {
+      "fullUrl": "urn:uuid:edge-missing-dates",
+      "resource": {
+        "resourceType": "Patient",
+        "id": "edge-missing-dates",
+        "gender": "female",
+        "birthDate": "1990-01-01"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Procedure",
+        "id": "procedure-without-date",
+        "subject": {"reference": "urn:uuid:edge-missing-dates"},
+        "code": {
+          "coding": [
+            {"system": "http://snomed.info/sct", "code": "80146002"}
+          ]
+        },
+        "status": "completed"
+      }
+    }
+  ]
+}
