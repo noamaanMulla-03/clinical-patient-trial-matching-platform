@@ -11,14 +11,14 @@ known-first-party = ["app"]
 
 [tool.mypy]
 python_version = "3.12"
-mypy_path = ["apps/api"]
-files = ["apps/api/app"]
+mypy_path = ["."]
+files = ["app"]
 strict = true
 warn_unused_configs = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["apps/api"]
+pythonpath = ["."]
 addopts = "-ra --strict-config --strict-markers"
 markers = [
   "integration: test requiring external infrastructure such as PostgreSQL or Redis",

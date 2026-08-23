@@ -5,9 +5,10 @@ This directory is managed by Alembic. The application will use SQLAlchemy's asyn
 ## One-time local setup
 
 ```bash
+cd apps/backend
 cp .env.example .env
 python -m venv .venv
-.venv/bin/pip install -r apps/api/requirements.txt
+.venv/bin/pip install -r requirements.txt
 ```
 
 Docker Compose does not automatically export `.env` into an interactive shell. Load the database URL before running Alembic locally:
@@ -48,4 +49,6 @@ Show the database's current migration revision:
 
 ## Current state
 
-No domain tables exist yet. Add SQLAlchemy models inheriting from `app.db.base.Base` during the domain-model phase, then create the first migration. Commit every migration file; do not edit a migration that has already been applied outside a disposable local database.
+The current migration history creates the source-linked patient, trial, match-run,
+criterion-result, and review-decision tables. Commit every migration file; do not
+edit a migration that has already been applied outside a disposable local database.

@@ -7,7 +7,7 @@
     "source_archive_date": "2021-11-19"
   },
   "preparation": {
-    "script": "datasets/scripts/prepare_synthea_fixtures.py",
+    "script": "apps/backend/datasets/scripts/prepare_synthea_fixtures.py",
     "added_bundle_tag": {
       "system": "urn:clinical-trial-matcher:data-classification",
       "code": "synthetic-data"

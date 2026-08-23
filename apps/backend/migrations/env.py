@@ -10,10 +10,9 @@ from pathlib import Path
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-# Allow Alembic, which starts from the repository root, to import the API package.
-repository_root = Path(__file__).resolve().parents[1]
-api_path = repository_root / "apps" / "api"
-sys.path.insert(0, str(api_path))
+# Keep migrations self-contained with the backend package after a local checkout.
+backend_path = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(backend_path))
 
 import app.db.models  # noqa: E402, F401
 from app.db.base import Base  # noqa: E402

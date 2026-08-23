@@ -159,9 +159,7 @@ class RetrievalRelevanceResponse(BaseModel):
     matched_fact_ids: list[str] = Field(default_factory=list)
 
     @classmethod
-    def from_scores(
-        cls, scores: dict[str, Any]
-    ) -> RetrievalRelevanceResponse | None:
+    def from_scores(cls, scores: dict[str, Any]) -> RetrievalRelevanceResponse | None:
         """Expose validated score fields; absent or corrupt values stay unavailable."""
         score = scores.get("lexical_score")
         matched_term_count = scores.get("matched_term_count")

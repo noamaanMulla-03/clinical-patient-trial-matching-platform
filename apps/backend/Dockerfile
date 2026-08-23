@@ -2,16 +2,16 @@ FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/workspace/apps/api
+    PYTHONPATH=/workspace
 
 WORKDIR /workspace
 
-COPY apps/api/requirements.txt apps/api/requirements-dev.txt /tmp/
+COPY requirements.txt requirements-dev.txt /tmp/
 RUN python -m pip install --no-cache-dir --requirement /tmp/requirements.txt
 
 COPY alembic.ini ./
 COPY migrations ./migrations
-COPY apps/api ./apps/api
+COPY app ./app
 
 EXPOSE 8000
 

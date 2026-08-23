@@ -285,28 +285,12 @@ Long-running endpoints return `202 Accepted` and a job ID. Do not hold HTTP requ
 ```text
 clinical-trial-matcher/
 ├── apps/
-│   ├── web/                     # React application
-│   └── api/                     # FastAPI routes and dependency wiring
-├── services/
-│   ├── fhir_normalizer/         # FHIR R4 validation and patient facts
-│   ├── trial_ingestion/         # ClinicalTrials.gov client and versioning
-│   ├── retrieval/               # Lexical, vector, fusion, reranking
-│   ├── criterion_parser/        # Atomic criterion extraction
-│   ├── criterion_engine/        # Deterministic rules and unit conversion
-│   └── llm_adjudicator/         # Strict fallback evaluator
-├── workers/                     # Background jobs
-├── packages/
-│   ├── schemas/                 # Shared Pydantic and TypeScript schemas
-│   └── observability/           # Logging, metrics, tracing
-├── migrations/
-├── tests/
-│   ├── unit/
-│   ├── integration/
-│   ├── contract/
-│   ├── security/
-│   └── evaluation/
-├── datasets/
-│   └── README.md                # Download instructions; no PHI in Git
+│   ├── backend/                 # FastAPI, matching, workers, migrations, tests, and fixtures
+│   │   ├── app/
+│   │   ├── migrations/
+│   │   ├── tests/
+│   │   └── datasets/
+│   └── web/                     # React application
 ├── docker-compose.yml
 └── README.md
 ```

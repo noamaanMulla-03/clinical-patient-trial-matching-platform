@@ -25,7 +25,8 @@ Every imported FHIR R4 Bundle must carry the exact top-level `meta.tag` marker b
 }
 ```
 
-See [datasets/README.md](datasets/README.md) for a complete example and fixture rules.
+See [apps/backend/datasets/README.md](apps/backend/datasets/README.md) for a
+complete example and fixture rules.
 
 ## Clinical-content logging
 
@@ -52,17 +53,16 @@ It currently supports:
 - PostgreSQL full-text trial retrieval, conservative metadata filtering, deterministic candidate scoring, and ranked match results.
 - Durable match-run cancellation requests, safe failure status, and immutable run/version traceability.
 
-The reviewer web interface, autonomous worker dispatcher, semantic retrieval, and evaluation tooling are not implemented yet. Docker Compose currently starts PostgreSQL and Redis; its API, worker, and web services remain development scaffolds.
+The reviewer web interface and durable worker dispatcher are implemented. Semantic
+retrieval and formal evaluation tooling remain roadmap items. Docker Compose starts
+PostgreSQL, Redis, the migration job, API, worker, and web application.
 
 ## Repository layout
 
 ```text
-apps/api/app/  # FastAPI routes, FHIR import, trial ingestion, matching, and workers
-apps/web/      # Planned reviewer interface scaffold
-migrations/    # Alembic schema history through match-run cancellation support
-tests/         # Unit, integration, and OpenAPI contract checks
-datasets/      # Synthetic FHIR fixtures and dataset instructions
-docker-compose.yml  # Local PostgreSQL, Redis, and scaffold containers
+apps/backend/  # Python backend, migrations, tests, and synthetic fixtures
+apps/web/      # React reviewer interface
+docker-compose.yml  # Local PostgreSQL, Redis, migration, API, worker, and web services
 IMPLEMENTATION_ROADMAP.md  # Completed and remaining delivery phases
 ```
 
@@ -77,17 +77,21 @@ Requirements:
 
 ### Run the backend locally
 
-Start the implemented backend directly from the repository; Docker Compose currently supplies the local PostgreSQL and Redis dependencies.
+Start the complete local system:
 
 ```bash
-docker compose up -d postgres redis
+cp apps/backend/.env.example apps/backend/.env
+docker compose --env-file apps/backend/.env up --build
 ```
 
-Create the virtual environment and install the API dependencies:
+For direct backend development, work inside the backend directory. Create the
+environment template first if needed:
 
 ```bash
+cd apps/backend
+cp .env.example .env
 python -m venv .venv
-.venv/bin/python -m pip install -r apps/api/requirements-dev.txt
+.venv/bin/python -m pip install -r requirements-dev.txt
 ```
 
 Set a host-reachable database URL and apply the schema migrations:
@@ -101,9 +105,11 @@ Start FastAPI with reload enabled:
 
 ```bash
 DATABASE_URL=postgresql+asyncpg://app:app@localhost:5432/trial_matcher \
-  .venv/bin/uvicorn app.main:app --app-dir apps/api --reload
+  .venv/bin/uvicorn app.main:app --reload
 ```
-Open <http://127.0.0.1:8000/docs> for the generated OpenAPI interface. The standalone worker dispatcher is not wired to Docker Compose yet; queue routes persist durable jobs, and the worker functions are covered by the integration suite.
+Open <http://127.0.0.1:8000/docs> for the generated OpenAPI interface. Run the
+local dispatcher with `.venv/bin/python -m app.workers.dispatcher` when working
+outside Docker Compose.
 
 ## Current API surface
 
@@ -112,23 +118,26 @@ Open <http://127.0.0.1:8000/docs> for the generated OpenAPI interface. The stand
 - `POST /trial-syncs` and `GET /trial-syncs/{job_id}`
 - `POST /match-runs`, `GET /match-runs/{run_id}`, and `GET /match-runs/{run_id}/results`
 - `POST /match-runs/{run_id}/cancel`
+- `GET /criterion-results/{criterion_result_id}` and `POST /criterion-results/{criterion_result_id}/corrections`
 
 `POST /trial-syncs` and `POST /match-runs` deliberately queue durable work; they do not perform external ingestion or matching in the HTTP request. A match result is a ranked retrieval candidate, not an eligibility decision or enrollment recommendation.
 
 ## Backend validation
 
-Run the current backend checks from the repository root:
+Run backend checks from `apps/backend`:
 
 ```bash
-.venv/bin/python -m ruff format --check apps/api/app tests
-.venv/bin/python -m ruff check apps/api/app tests
-.venv/bin/python -m mypy apps/api/app
-TEST_DATABASE_URL=postgresql+asyncpg://app:app@localhost:5432/trial_matcher .venv/bin/python -m pytest tests
+.venv/bin/python -m ruff format --check .
+.venv/bin/python -m ruff check .
+.venv/bin/python -m mypy
+TEST_DATABASE_URL=postgresql+asyncpg://app:app@localhost:5432/trial_matcher .venv/bin/python -m pytest
 ```
 
 ## Frontend
 
-The reviewer interface is a planned Phase 6 deliverable. There is no runnable web application or frontend validation command yet.
+The reviewer interface runs at <http://127.0.0.1:5173> in Docker Compose. For
+frontend-only checks, run `npm --prefix apps/web test`, `npm --prefix apps/web run
+lint`, and `npm --prefix apps/web run build` from the repository root.
 
 ## Core safety rule
 

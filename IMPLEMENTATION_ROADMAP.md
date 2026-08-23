@@ -6,7 +6,7 @@ This roadmap translates the technical design into small, incremental delivery st
 
 ## Phase 0 — Foundation and Safety Boundaries
 
-- [x] Create the repository structure from the design (`apps`, `services`, `workers`, `packages`, `tests`, `datasets`, `migrations`).
+- [x] Create the repository structure with self-contained backend and web applications.
 - [x] Add a root `README.md` with local setup and a clear research-only disclaimer.
 - [x] Add `.env.example` with database, Redis, ClinicalTrials.gov, model, and synthetic-data settings.
 - [x] Add Docker Compose services for PostgreSQL, Redis, API, worker, and web app.

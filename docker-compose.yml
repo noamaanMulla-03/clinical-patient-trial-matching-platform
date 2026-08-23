@@ -34,8 +34,8 @@ services:
 
   api:
     build:
-      context: .
-      dockerfile: apps/api/Dockerfile
+      context: ./apps/backend
+      dockerfile: Dockerfile
     environment:
       APP_ENV: ${APP_ENV:-development}
       APP_HOST: ${APP_HOST:-0.0.0.0}
@@ -68,8 +68,8 @@ services:
 
   migrate:
     build:
-      context: .
-      dockerfile: apps/api/Dockerfile
+      context: ./apps/backend
+      dockerfile: Dockerfile
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://app:app@postgres:5432/trial_matcher}
     depends_on:
@@ -80,8 +80,8 @@ services:
 
   worker:
     build:
-      context: .
-      dockerfile: apps/api/Dockerfile
+      context: ./apps/backend
+      dockerfile: Dockerfile
     environment:
       APP_ENV: ${APP_ENV:-development}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
@@ -105,8 +105,8 @@ services:
 
   web:
     build:
-      context: .
-      dockerfile: apps/web/Dockerfile
+      context: ./apps/web
+      dockerfile: Dockerfile
     environment:
       NODE_ENV: development
       VITE_API_PROXY_TARGET: http://api:8000
