@@ -485,6 +485,14 @@ textarea {
   color: #0b684f;
   background: #daf4e8;
 }
+.catalogue-refresh-notice {
+  margin: 14px 0;
+  padding: 10px 13px;
+  border-radius: 7px;
+  color: #075c75;
+  background: #d9f1f7;
+  font-weight: 650;
+}
 .run-details {
   padding: 24px;
 }

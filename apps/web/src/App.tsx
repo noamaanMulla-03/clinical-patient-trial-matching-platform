@@ -130,15 +130,21 @@ function CatalogueScreen() {
   const [syncs, setSyncs] = useState<TrialSync[]>([]);
   const [selection, setSelection] = useState<TrialSyncCreateInput>(blankTrialSyncInput);
   const [message, setMessage] = useState<string>();
+  const [refreshNotice, setRefreshNotice] = useState<string>();
+  const [refreshing, setRefreshing] = useState(false);
   const [busy, setBusy] = useState(false);
   const activeSyncIds = syncs
     .filter((sync) => sync.status === 'queued' || sync.status === 'running')
     .map((sync) => sync.id);
 
   const refreshCatalogue = useCallback(async () => {
+    setRefreshing(true);
     try {
       const current = await requestJson<TrialCatalogueStatus>('/trial-catalogue');
       setCatalogue(current);
+      setRefreshNotice(
+        `Catalogue refreshed: ${current.searchable_trial_count} public trial record${current.searchable_trial_count === 1 ? '' : 's'} available.`,
+      );
       const latestSync = current.latest_sync;
       if (latestSync)
         setSyncs((previous) =>
@@ -148,6 +154,8 @@ function CatalogueScreen() {
         );
     } catch {
       setMessage('The trial catalogue status could not be loaded.');
+    } finally {
+      setRefreshing(false);
     }
   }, []);
 
@@ -251,10 +259,11 @@ function CatalogueScreen() {
         </div>
         <button
           className="button secondary"
+          disabled={refreshing}
           onClick={() => void refreshCatalogue()}
           type="button"
         >
-          Refresh status
+          {refreshing ? 'Refreshing…' : 'Refresh status'}
         </button>
       </div>
       <p className="safety-note inline">
@@ -271,6 +280,7 @@ function CatalogueScreen() {
       ) : (
         <p className="muted">Loading catalogue status…</p>
       )}
+      {refreshNotice && <p className="catalogue-refresh-notice">{refreshNotice}</p>}
       <div className="catalogue-actions">
         <article className="panel">
           <p className="eyebrow">Local demo collection</p>
@@ -376,6 +386,11 @@ function CatalogueScreen() {
       {displayedSyncs.length > 0 && (
         <section className="sync-list" aria-labelledby="latest-update-title">
           <h3 id="latest-update-title">Latest update</h3>
+          <p className="muted">
+            This card shows the most recent update only. The catalogue currently
+            contains {catalogue?.searchable_trial_count ?? 0} public trial record
+            {(catalogue?.searchable_trial_count ?? 0) === 1 ? '' : 's'}.
+          </p>
           {displayedSyncs.map((sync) => (
             <TrialSyncCard
               key={sync.id}
