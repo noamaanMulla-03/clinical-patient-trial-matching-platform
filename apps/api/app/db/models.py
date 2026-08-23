@@ -324,11 +324,26 @@ class MatchRun(Base):
     status: Mapped[str] = mapped_column(
         String(16), nullable=False, server_default="queued"
     )
+    failure_code: Mapped[str | None] = mapped_column(String(64))
+    failure_message: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class MatchRunCancellation(Base):
+    """A durable request that a worker can observe without changing run inputs."""
+
+    __tablename__ = "match_run_cancellations"
+
+    match_run_id: Mapped[UUID] = mapped_column(
+        ForeignKey("match_runs.id", ondelete="RESTRICT"), primary_key=True
+    )
+    requested_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class TrialMatch(Base):

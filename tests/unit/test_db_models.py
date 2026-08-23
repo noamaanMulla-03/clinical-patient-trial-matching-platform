@@ -9,6 +9,7 @@ def test_models_register_the_required_tables() -> None:
         "criteria",
         "criterion_results",
         "match_runs",
+        "match_run_cancellations",
         "patient_facts",
         "patient_imports",
         "patients",
@@ -102,6 +103,7 @@ def test_matching_tables_preserve_the_full_evidence_chain() -> None:
         "match_runs": {"patient_imports.id"},
         "trial_matches": {"match_runs.id", "trial_versions.id"},
         "criterion_results": {"criteria.id", "trial_matches.id"},
+        "match_run_cancellations": {"match_runs.id"},
         "review_decisions": {"criterion_results.id"},
     }
 

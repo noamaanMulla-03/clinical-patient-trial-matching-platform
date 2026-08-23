@@ -9,6 +9,7 @@ from fastapi import FastAPI
 
 from app.errors import install_api_error_handlers, request_id_middleware
 from app.observability.redaction import configure_log_redaction
+from app.routes.match_runs import router as match_runs_router
 from app.routes.patients import router as patients_router
 from app.routes.system import router as system_router
 from app.routes.trial_syncs import router as trial_syncs_router
@@ -48,6 +49,12 @@ app = FastAPI(
                 "Bounded ClinicalTrials.gov ingestion-job status and control."
             ),
         },
+        {
+            "name": "match-runs",
+            "description": (
+                "Queued lexical trial retrieval runs over synthetic patient imports."
+            ),
+        },
     ],
     lifespan=lifespan,
 )
@@ -56,3 +63,4 @@ install_api_error_handlers(app)
 app.include_router(system_router)
 app.include_router(patients_router)
 app.include_router(trial_syncs_router)
+app.include_router(match_runs_router)
