@@ -10,6 +10,7 @@ from typing import Any
 REDACTED_VALUE = "[REDACTED]"
 REDACTED_LOG_ARGUMENTS = "[REDACTED: dynamic log arguments omitted]"
 REDACTED_FHIR_CONTENT = "[REDACTED: FHIR content]"
+_REDACTED_ACCESS_LOG_ARGS = (REDACTED_VALUE, "REQUEST", REDACTED_VALUE, "1.1", 0)
 
 SENSITIVE_FIELD_TOKENS = frozenset(
     {
@@ -104,14 +105,20 @@ def redact_log_fields(fields: Mapping[str, Any]) -> dict[str, Any]:
 
 
 class ClinicalContentRedactionFilter(logging.Filter):
-    """Redact structured extras and discard dynamic arguments from log records."""
+    """Redact structured extras and dynamic arguments without breaking Uvicorn."""
 
     def filter(self, record: logging.LogRecord) -> bool:
         if record.args:
-            # Dynamic arguments may contain arbitrary clinical text. Preserve only
-            # the static message template instead of trying to classify its values.
-            record.msg = f"{record.msg} {REDACTED_LOG_ARGUMENTS}"
-            record.args = ()
+            if record.name == "uvicorn.access":
+                # Uvicorn's AccessFormatter must unpack five values from args.
+                # Preserve that shape while removing the client address, method,
+                # URL, protocol, and status from the emitted log line.
+                record.args = _REDACTED_ACCESS_LOG_ARGS
+            else:
+                # Dynamic arguments may contain arbitrary clinical text. Preserve
+                # only the static message template instead of classifying values.
+                record.msg = f"{record.msg} {REDACTED_LOG_ARGUMENTS}"
+                record.args = ()
         elif isinstance(record.msg, str):
             record.msg = redact_text(record.msg)
 

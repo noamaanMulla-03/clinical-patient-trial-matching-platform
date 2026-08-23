@@ -11,10 +11,12 @@ from app.fhir.importer import FHIRPatientNormalizationError
 from app.fhir.schemas import (
     FHIRImportRequest,
     FHIRImportResponse,
+    PatientFactSourceResponse,
     PatientTimelineResponse,
 )
 from app.services.source_snapshots import (
     persist_synthetic_patient_import,
+    retrieve_patient_fact_source,
     retrieve_patient_timeline,
 )
 
@@ -98,3 +100,35 @@ async def get_synthetic_patient_timeline(
             message="Synthetic patient was not found.",
         )
     return timeline
+
+
+@router.get(
+    "/patients/{patient_id}/facts/{fact_id}/source",
+    operation_id="get_synthetic_patient_fact_source",
+    response_model=PatientFactSourceResponse,
+    summary="Retrieve immutable FHIR source evidence for a current timeline fact",
+    responses={
+        200: {"headers": {"X-Request-ID": OPENAPI_REQUEST_ID_RESPONSE_HEADER}},
+        404: {
+            "description": (
+                "Synthetic patient fact was not found in the current import."
+            ),
+            "model": APIErrorResponse,
+            "headers": {"X-Request-ID": OPENAPI_REQUEST_ID_RESPONSE_HEADER},
+        },
+    },
+)
+async def get_synthetic_patient_fact_source(
+    patient_id: str,
+    fact_id: str,
+    session: DatabaseSession,
+) -> PatientFactSourceResponse:
+    """Expose one source snapshot without merging it across patient imports."""
+    source = await retrieve_patient_fact_source(session, patient_id, fact_id)
+    if source is None:
+        raise APIError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="patient_fact.not_found",
+            message="Synthetic patient fact was not found in the current import.",
+        )
+    return source

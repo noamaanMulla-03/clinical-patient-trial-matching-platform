@@ -9,6 +9,7 @@ from fastapi import FastAPI
 
 from app.errors import install_api_error_handlers, request_id_middleware
 from app.observability.redaction import configure_log_redaction
+from app.routes.criterion_results import router as criterion_results_router
 from app.routes.match_runs import router as match_runs_router
 from app.routes.patients import router as patients_router
 from app.routes.system import router as system_router
@@ -55,6 +56,12 @@ app = FastAPI(
                 "Queued lexical trial retrieval runs over synthetic patient imports."
             ),
         },
+        {
+            "name": "criterion-results",
+            "description": (
+                "Source-linked criterion evidence and append-only reviewer corrections."
+            ),
+        },
     ],
     lifespan=lifespan,
 )
@@ -64,3 +71,4 @@ app.include_router(system_router)
 app.include_router(patients_router)
 app.include_router(trial_syncs_router)
 app.include_router(match_runs_router)
+app.include_router(criterion_results_router)

@@ -14,11 +14,18 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from app.criteria.aggregation import aggregate_trial_match
+from app.criteria.api_schemas import ReviewCorrectionRequest
 from app.criteria.manual import create_manual_criteria
 from app.criteria.results import CriterionResultError, store_criterion_result
 from app.criteria.schemas import AtomicCriterion, CriterionEvaluation
 from app.db.models import MatchRun, TrialMatch
 from app.fhir.schemas import FHIRImportRequest
+from app.services.criterion_details import (
+    CriterionDetailError,
+    append_reviewer_correction,
+    retrieve_criterion_detail,
+)
+from app.services.match_runs import match_run_results
 from app.services.source_snapshots import (
     persist_synthetic_patient_import,
     store_trial_version,
@@ -129,6 +136,48 @@ def test_results_require_snapshot_evidence_and_aggregate_to_a_bounded_outcome() 
         assert result.evaluator_version == "deterministic-test-v1"
         assert result.criterion_id == criterion.id
         assert result.explanation == "predicate_matched"
+
+        detail = await retrieve_criterion_detail(session, result.id)
+        assert detail.criterion.source_text == "Adults"
+        assert detail.evaluation.current_outcome == "met"
+        assert [fact.fact_id for fact in detail.patient_evidence] == [
+            patient_import.fact_ids[0]
+        ]
+        assert detail.audit_history[0].event_type == "deterministic_evaluation"
+
+        correction = await append_reviewer_correction(
+            session,
+            criterion_result_id=result.id,
+            correction=ReviewCorrectionRequest(
+                reviewer_id="reviewer-01",
+                corrected_outcome="unknown",
+                reason="Evidence needs manual reconciliation.",
+            ),
+        )
+        assert correction.previous_outcome == "met"
+        assert correction.corrected_outcome == "unknown"
+        corrected_detail = await retrieve_criterion_detail(session, result.id)
+        assert corrected_detail.evaluation.outcome == "met"
+        assert corrected_detail.evaluation.current_outcome == "unknown"
+        assert [event.event_type for event in corrected_detail.audit_history] == [
+            "deterministic_evaluation",
+            "review_correction",
+        ]
+        listed_candidates = await match_run_results(session, match_run)
+        assert listed_candidates[0].criterion_results[0].id == result.id
+        assert listed_candidates[0].criterion_results[0].source_text == "Adults"
+        assert listed_candidates[0].criterion_results[0].outcome == "met"
+        assert listed_candidates[0].criterion_results[0].current_outcome == "unknown"
+        with pytest.raises(CriterionDetailError, match="different criterion outcome"):
+            await append_reviewer_correction(
+                session,
+                criterion_result_id=result.id,
+                correction=ReviewCorrectionRequest(
+                    reviewer_id="reviewer-01",
+                    corrected_outcome="unknown",
+                    reason="Duplicate correction is not permitted.",
+                ),
+            )
 
         with pytest.raises(
             CriterionResultError, match="missing from this patient import"

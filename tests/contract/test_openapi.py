@@ -12,6 +12,9 @@ def test_openapi_contract_documents_the_core_system_routes() -> None:
     health_operation = specification["paths"]["/health"]["get"]
     import_operation = specification["paths"]["/patients/import/fhir"]["post"]
     patient_operation = specification["paths"]["/patients/{patient_id}"]["get"]
+    fact_source_operation = specification["paths"][
+        "/patients/{patient_id}/facts/{fact_id}/source"
+    ]["get"]
     create_trial_sync_operation = specification["paths"]["/trial-syncs"]["post"]
     get_trial_sync_operation = specification["paths"]["/trial-syncs/{job_id}"]["get"]
 
@@ -41,6 +44,7 @@ def test_openapi_contract_documents_the_core_system_routes() -> None:
         "FHIRImportResponse",
         "HealthResponse",
         "PatientTimelineResponse",
+        "PatientFactSourceResponse",
         "TrialSyncCreateRequest",
         "TrialSyncResponse",
     }
@@ -58,6 +62,10 @@ def test_openapi_contract_documents_the_core_system_routes() -> None:
     assert patient_operation["responses"]["404"]["content"]["application/json"][
         "schema"
     ] == {"$ref": "#/components/schemas/APIErrorResponse"}
+    assert fact_source_operation["operationId"] == "get_synthetic_patient_fact_source"
+    assert fact_source_operation["responses"]["200"]["content"]["application/json"][
+        "schema"
+    ] == {"$ref": "#/components/schemas/PatientFactSourceResponse"}
     assert create_trial_sync_operation["operationId"] == "create_trial_sync"
     assert create_trial_sync_operation["responses"]["202"]["content"][
         "application/json"

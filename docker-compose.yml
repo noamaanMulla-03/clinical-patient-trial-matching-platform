@@ -33,9 +33,9 @@ services:
       retries: 10
 
   api:
-    # Temporary scaffold; replace with an API Dockerfile when apps/api exists.
-    image: python:3.12-slim
-    working_dir: /app
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
     environment:
       APP_ENV: ${APP_ENV:-development}
       APP_HOST: ${APP_HOST:-0.0.0.0}
@@ -52,19 +52,36 @@ services:
       ALLOW_PRODUCTION_LIKE_ENVIRONMENT: ${ALLOW_PRODUCTION_LIKE_ENVIRONMENT:-false}
     ports:
       - "8000:8000"
-    volumes:
-      - ./apps/api:/app
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: ["sh", "-c", "echo 'API scaffold: application not implemented yet.'; tail -f /dev/null"]
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://app:app@postgres:5432/trial_matcher}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
 
   worker:
-    # Temporary scaffold; replace with a worker image and command when workers exist.
-    image: python:3.12-slim
-    working_dir: /app
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
     environment:
       APP_ENV: ${APP_ENV:-development}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
@@ -76,29 +93,28 @@ services:
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-replace-with-an-explicit-version}
       LLM_API_KEY: ${LLM_API_KEY:-}
       ALLOW_REAL_PATIENT_DATA: ${ALLOW_REAL_PATIENT_DATA:-false}
-    volumes:
-      - ./workers:/app
+      WORKER_POLL_SECONDS: ${WORKER_POLL_SECONDS:-1}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: ["sh", "-c", "echo 'Worker scaffold: job processing not implemented yet.'; tail -f /dev/null"]
+      migrate:
+        condition: service_completed_successfully
+    command: ["python", "-m", "app.workers.dispatcher"]
 
   web:
-    # Temporary scaffold; replace with the React/Vite development command when apps/web exists.
-    image: node:22-alpine
-    working_dir: /app
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
     environment:
       NODE_ENV: development
+      VITE_API_PROXY_TARGET: http://api:8000
     ports:
       - "5173:5173"
-    volumes:
-      - ./apps/web:/app
     depends_on:
       api:
-        condition: service_started
-    command: ["sh", "-c", "echo 'Web scaffold: application not implemented yet.'; tail -f /dev/null"]
+        condition: service_healthy
 
 volumes:
   postgres_data:

@@ -55,6 +55,23 @@ def test_filter_discards_dynamic_log_arguments() -> None:
     assert record.getMessage() == f"Imported patient %s {REDACTED_LOG_ARGUMENTS}"
 
 
+def test_filter_preserves_uvicorn_access_log_argument_shape_without_content() -> None:
+    record = logging.LogRecord(
+        name="uvicorn.access",
+        level=logging.INFO,
+        pathname=__file__,
+        lineno=1,
+        msg='%s - "%s %s HTTP/%s" %d',
+        args=("127.0.0.1", "GET", "/patients/patient-1", "1.1", 200),
+        exc_info=None,
+    )
+
+    ClinicalContentRedactionFilter().filter(record)
+
+    assert record.args == (REDACTED_VALUE, "REQUEST", REDACTED_VALUE, "1.1", 0)
+    assert "patient-1" not in record.getMessage()
+
+
 def test_filter_redacts_sensitive_extra_attributes() -> None:
     record = logging.LogRecord(
         name="test",

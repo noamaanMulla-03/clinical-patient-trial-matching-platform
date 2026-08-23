@@ -2,19 +2,28 @@
 
 from __future__ import annotations
 
+from typing import Literal, cast
 from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import (
+    Criterion,
+    CriterionResult,
     MatchRun,
     MatchRunCancellation,
     PatientImport,
+    ReviewDecision,
     TrialMatch,
     TrialVersion,
 )
-from app.matching.schemas import MatchRunResponse, TrialMatchResponse
+from app.matching.schemas import (
+    CriterionResultSummary,
+    MatchRunResponse,
+    TrialMatchResponse,
+)
+from app.trials.extraction import TrialExtractionError, extract_trial_fields
 
 MAX_MATCH_RUN_CANDIDATES = 100
 LEXICAL_RETRIEVAL_VERSION = "lexical-v1"
@@ -120,18 +129,87 @@ async def match_run_results(
             )
         )
     }
-    return [
-        TrialMatchResponse.from_record(
-            match,
-            nct_id=versions[match.trial_version_id].nct_id,
-            title=versions[match.trial_version_id]
-            .raw_study.get("protocolSection", {})
-            .get("identificationModule", {})
-            .get("briefTitle"),
+    patient_import = await session.get(PatientImport, run.patient_import_id)
+    if patient_import is None:
+        raise MatchRunError("Match run patient import was not found.")
+    criterion_summaries = await _criterion_summaries_by_match(session, matches)
+    results: list[TrialMatchResponse] = []
+    for match in matches:
+        version = versions.get(match.trial_version_id)
+        if version is None:
+            continue
+        title, study_status = _trial_display_metadata(version)
+        results.append(
+            TrialMatchResponse.from_record(
+                match,
+                patient_id=patient_import.patient_id,
+                nct_id=version.nct_id,
+                title=title,
+                study_status=study_status,
+                source_updated_at=version.source_updated_at,
+                criterion_results=criterion_summaries.get(match.id, []),
+            )
         )
-        for match in matches
-        if match.trial_version_id in versions
-    ]
+    return results
+
+
+async def _criterion_summaries_by_match(
+    session: AsyncSession, matches: list[TrialMatch]
+) -> dict[UUID, list[CriterionResultSummary]]:
+    """Attach review links without recomputing or mutating criterion outcomes."""
+    match_ids = [match.id for match in matches]
+    if not match_ids:
+        return {}
+    rows = (
+        await session.execute(
+            select(CriterionResult, Criterion)
+            .join(Criterion, Criterion.id == CriterionResult.criterion_id)
+            .where(CriterionResult.trial_match_id.in_(match_ids))
+            .order_by(CriterionResult.evaluated_at, CriterionResult.id)
+        )
+    ).all()
+    result_ids = [result.id for result, _ in rows]
+    decisions_by_result: dict[UUID, list[ReviewDecision]] = {}
+    if result_ids:
+        for decision in await session.scalars(
+            select(ReviewDecision)
+            .where(ReviewDecision.criterion_result_id.in_(result_ids))
+            .order_by(ReviewDecision.created_at, ReviewDecision.id)
+        ):
+            decisions_by_result.setdefault(decision.criterion_result_id, []).append(
+                decision
+            )
+
+    summaries: dict[UUID, list[CriterionResultSummary]] = {}
+    for result, criterion in rows:
+        decisions = decisions_by_result.get(result.id, [])
+        current_outcome = (
+            decisions[-1].corrected_outcome if decisions else result.outcome
+        )
+        summaries.setdefault(result.trial_match_id, []).append(
+            CriterionResultSummary(
+                id=result.id,
+                category=criterion.category,
+                source_text=criterion.source_text,
+                outcome=result.outcome,
+                current_outcome=cast(
+                    Literal["met", "not_met", "unknown", "conflicting"],
+                    current_outcome,
+                ),
+                requires_review=result.requires_review,
+            )
+        )
+    return summaries
+
+
+def _trial_display_metadata(version: TrialVersion) -> tuple[str | None, str | None]:
+    """Read display metadata from the exact trial snapshot used for matching."""
+    try:
+        fields = extract_trial_fields(version.raw_study)
+    except TrialExtractionError:
+        # Old or corrupt source snapshots must not be represented as current metadata.
+        return None, None
+    return fields.title, fields.status
 
 
 def _configuration_snapshot(patient_import_id: UUID) -> dict[str, object]:

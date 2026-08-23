@@ -6,6 +6,7 @@ from app.workers.trial_ingestion import (
     MAX_TRIAL_INGESTION_PAGES,
     TrialIngestionJobError,
     TrialIngestionRequest,
+    _request_from_parameters,
 )
 
 
@@ -61,3 +62,39 @@ def test_request_rejects_ambiguous_or_unbounded_selections(
 ) -> None:
     with pytest.raises(TrialIngestionJobError):
         TrialIngestionRequest(**request_kwargs)  # type: ignore[arg-type]
+
+
+def test_stored_request_is_revalidated_before_a_worker_uses_it() -> None:
+    request = _request_from_parameters(
+        {
+            "nct_id": None,
+            "collection_id": "development",
+            "query_term": "  melanoma ",
+            "condition": None,
+            "start_page": 1,
+            "end_page": 2,
+            "page_size": 25,
+        }
+    )
+
+    assert request.collection_id == "development"
+    assert request.query_term == "melanoma"
+    assert request.start_page == 1
+    assert request.end_page == 2
+    assert request.page_size == 25
+
+
+@pytest.mark.parametrize(
+    "parameters",
+    [
+        {"page_size": 25},
+        {"query_term": "melanoma", "page_size": "25"},
+        {"query_term": "melanoma", "page_size": 0},
+        {"query_term": ["melanoma"], "page_size": 25},
+    ],
+)
+def test_stored_request_rejects_malformed_parameters(
+    parameters: dict[str, object],
+) -> None:
+    with pytest.raises(TrialIngestionJobError, match="invalid stored selection"):
+        _request_from_parameters(parameters)

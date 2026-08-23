@@ -288,6 +288,15 @@ class PatientFactResponse(BaseModel):
     quality_issues: list[DataQualityIssue]
 
 
+class PatientFactSourceResponse(BaseModel):
+    """The immutable source resource for a fact in the latest completed import."""
+
+    patient_id: str
+    fact_id: str
+    source: FHIRProvenance
+    source_resource: dict[str, Any]
+
+
 class PatientTimelineResponse(BaseModel):
     """The latest completed synthetic import and its unmerged fact timeline."""
 

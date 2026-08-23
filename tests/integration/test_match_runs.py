@@ -81,9 +81,11 @@ def test_worker_persists_ranked_trial_versions_for_one_immutable_patient_import(
                     "eligibilityModule": {
                         "eligibilityCriteria": "Adults with diabetes"
                     },
+                    "statusModule": {"overallStatus": "RECRUITING"},
                 }
             },
             retrieved_at=datetime(2026, 8, 23, tzinfo=UTC),
+            source_updated_at=datetime(2026, 8, 22, tzinfo=UTC),
         )
         run = await create_queued_match_run(
             session, patient_import_id=patient_import.patient_import_id
@@ -120,6 +122,10 @@ def test_worker_persists_ranked_trial_versions_for_one_immutable_patient_import(
         assert response.configuration_versions["retrieval"] == "lexical-v1"
         assert results[0].nct_id == nct_id
         assert results[0].title == "Diabetes and metformin study"
+        assert results[0].study_status == "RECRUITING"
+        assert results[0].source_updated_at == datetime(2026, 8, 22, tzinfo=UTC)
+        assert results[0].retrieval_relevance is not None
+        assert results[0].retrieval_relevance.score > 0
         fact_ids = {
             record.id
             for record in await session.scalars(

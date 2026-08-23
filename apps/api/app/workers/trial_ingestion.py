@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from typing import Any, Literal, Protocol, cast
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clients.clinicaltrials import (
@@ -220,9 +220,50 @@ async def run_trial_ingestion_job(
 ) -> TrialIngestionResult:
     """Run one sync with durable status and rollback-safe source persistence."""
     sync = await create_queued_trial_sync(session, request)
-    sync.status = "running"
-    sync.started_at = datetime.now(UTC)
-    await session.flush()
+    return await _run_trial_sync(session, sync=sync, request=request, client=client)
+
+
+async def run_queued_trial_ingestion_job(
+    session: AsyncSession, sync_id: UUID
+) -> TrialIngestionResult:
+    """Claim and run one durable queued sync using its frozen request selection."""
+    claimed_sync_id = await session.scalar(
+        update(TrialSync)
+        .where(TrialSync.id == sync_id, TrialSync.status == "queued")
+        .values(status="running", started_at=datetime.now(UTC))
+        .returning(TrialSync.id)
+    )
+    sync = await session.get(TrialSync, sync_id)
+    if sync is None:
+        raise TrialIngestionJobError("Trial sync job was not found.")
+    if claimed_sync_id is None:
+        raise TrialIngestionJobError("Trial sync job is not queued for processing.")
+
+    try:
+        request = _request_from_parameters(sync.request_parameters)
+    except TrialIngestionJobError as error:
+        sync.status = "failed"
+        sync.failure_code, sync.failure_message = _safe_failure_details(error)
+        sync.completed_at = datetime.now(UTC)
+        await session.flush()
+        return _result_from_sync(sync)
+
+    async with ClinicalTrialsGovClient.from_environment() as client:
+        return await _run_trial_sync(session, sync=sync, request=request, client=client)
+
+
+async def _run_trial_sync(
+    session: AsyncSession,
+    *,
+    sync: TrialSync,
+    request: TrialIngestionRequest,
+    client: TrialStudiesClient,
+) -> TrialIngestionResult:
+    """Run a claimed sync while preserving its durable terminal status on failure."""
+    if sync.status == "queued":
+        sync.status = "running"
+        sync.started_at = datetime.now(UTC)
+        await session.flush()
 
     try:
         # Preserve the failed job record while rolling back partial trial snapshots.
@@ -262,6 +303,45 @@ async def run_configured_trial_ingestion_job(
     """Run the job using the environment-configured ClinicalTrials.gov client."""
     async with ClinicalTrialsGovClient.from_environment() as client:
         return await run_trial_ingestion_job(session, request, client=client)
+
+
+def _request_from_parameters(parameters: Mapping[str, Any]) -> TrialIngestionRequest:
+    """Revalidate the persisted selector before a worker can make a remote call."""
+    try:
+        return TrialIngestionRequest(
+            nct_id=_optional_parameter(parameters, "nct_id"),
+            collection_id=_optional_parameter(parameters, "collection_id"),
+            query_term=_optional_parameter(parameters, "query_term"),
+            condition=_optional_parameter(parameters, "condition"),
+            start_page=_integer_parameter(parameters, "start_page"),
+            end_page=_integer_parameter(parameters, "end_page"),
+            page_size=_required_integer_parameter(parameters, "page_size"),
+        )
+    except (TypeError, TrialIngestionJobError) as error:
+        raise TrialIngestionJobError(
+            "Trial sync has an invalid stored selection."
+        ) from error
+
+
+def _optional_parameter(parameters: Mapping[str, Any], name: str) -> str | None:
+    value = parameters.get(name)
+    if value is None or isinstance(value, str):
+        return value
+    raise TrialIngestionJobError("Trial sync has an invalid stored selection.")
+
+
+def _integer_parameter(parameters: Mapping[str, Any], name: str) -> int | None:
+    value = parameters.get(name)
+    if value is None or type(value) is int:
+        return value
+    raise TrialIngestionJobError("Trial sync has an invalid stored selection.")
+
+
+def _required_integer_parameter(parameters: Mapping[str, Any], name: str) -> int:
+    value = _integer_parameter(parameters, name)
+    if value is None:
+        raise TrialIngestionJobError("Trial sync has an invalid stored selection.")
+    return value
 
 
 async def _ingest_studies(

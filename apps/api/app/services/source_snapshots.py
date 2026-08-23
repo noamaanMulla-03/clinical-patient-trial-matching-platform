@@ -27,6 +27,7 @@ from app.fhir.schemas import (
     ImportDataQualityIssue,
     PatientFactKind,
     PatientFactResponse,
+    PatientFactSourceResponse,
     PatientFactValue,
     PatientImportSnapshotResponse,
     PatientTimelineResponse,
@@ -203,6 +204,39 @@ async def retrieve_patient_timeline(
             )
             for fact in facts
         ],
+    )
+
+
+async def retrieve_patient_fact_source(
+    session: AsyncSession, patient_id: str, fact_id: str
+) -> PatientFactSourceResponse | None:
+    """Return source evidence only when it belongs to the current import timeline."""
+    patient_import = await session.scalar(
+        select(PatientImport)
+        .where(
+            PatientImport.patient_id == patient_id,
+            PatientImport.status == "completed",
+        )
+        .order_by(PatientImport.completed_at.desc(), PatientImport.created_at.desc())
+        .limit(1)
+    )
+    if patient_import is None:
+        return None
+
+    fact = await session.scalar(
+        select(PatientFactRecord).where(
+            PatientFactRecord.patient_import_id == patient_import.id,
+            PatientFactRecord.id == fact_id,
+        )
+    )
+    if fact is None:
+        return None
+
+    return PatientFactSourceResponse(
+        patient_id=patient_id,
+        fact_id=fact.id,
+        source=FHIRProvenance.model_validate(fact.provenance),
+        source_resource=fact.source_resource,
     )
 
 

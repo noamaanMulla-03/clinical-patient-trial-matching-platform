@@ -129,17 +129,17 @@ This roadmap translates the technical design into small, incremental delivery st
 
 ## Phase 6 — Minimal Reviewer Interface
 
-- [ ] Create a patient import screen.
-- [ ] Create a patient timeline showing facts, source resource links, dates, and freshness.
-- [ ] Create a match-run status screen.
-- [ ] Create results tabs for potential matches, needs review, and likely exclusions.
-- [ ] Display trial title, NCT ID, study status, source update time, and retrieval relevance separately from outcome.
-- [ ] Add filtering and search across result lists.
-- [ ] Create a criterion-detail view.
-- [ ] Show original trial text, parsed criterion data, patient evidence, timestamps, and evaluation path.
-- [ ] Add clear visual treatment for unknown, conflicting, stale, and excluded outcomes.
-- [ ] Add a reviewer correction form.
-- [ ] Show audit history for criterion outcomes and corrections.
+- [x] Create a patient import screen.
+- [x] Create a patient timeline showing facts, source resource links, dates, and freshness.
+- [x] Create a match-run status screen.
+- [x] Create results tabs for potential matches, needs review, and likely exclusions.
+- [x] Display trial title, NCT ID, study status, source update time, and retrieval relevance separately from outcome.
+- [x] Add filtering and search across result lists.
+- [x] Create a criterion-detail view.
+- [x] Show original trial text, parsed criterion data, patient evidence, timestamps, and evaluation path.
+- [x] Add clear visual treatment for unknown, conflicting, stale, and excluded outcomes.
+- [x] Add a reviewer correction form.
+- [x] Show audit history for criterion outcomes and corrections.
 
 ### Exit checks
 
@@ -231,7 +231,7 @@ Complete these before starting semantic retrieval or LLM work:
 - [x] Phase 2: Synthetic FHIR import and normalization
 - [x] Phase 3: Trial ingestion and versioning
 - [x] Phase 4: Deterministic criterion rules
-- [ ] Phase 5: Lexical retrieval and match runs
+- [x] Phase 5: Lexical retrieval and match runs
 - [ ] Phase 6: Minimal reviewer interface
 - [ ] Phase 7: Baseline evaluation
 
