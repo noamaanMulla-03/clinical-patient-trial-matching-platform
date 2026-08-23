@@ -1,4 +1,5 @@
 -r requirements.txt
 mypy>=1.13,<2
+hypothesis>=6.120,<7
 pytest>=8.3,<9
 ruff>=0.8,<1
