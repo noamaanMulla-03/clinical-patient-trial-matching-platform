@@ -41,65 +41,94 @@ The current in-memory sink exists for local development and tests. A database-ba
 
 ## Current status
 
-The repository is in its initial scaffold stage. It includes the product design, delivery roadmap, local Docker infrastructure, and an Alembic migration foundation. Application features and domain tables have not yet been implemented.
+The backend implements Phases 0–5 of the roadmap: synthetic-data safety boundaries, FHIR normalization, trial versioning, deterministic criterion evaluation, and bounded lexical match runs.
+
+It currently supports:
+
+- Synthetic FHIR R4 imports for patients, conditions, observations, medications, procedures, and allergies.
+- Immutable patient-import and trial-version snapshots with source provenance.
+- Bounded ClinicalTrials.gov API v2 sync jobs and current searchable trial projections.
+- Deterministic criterion outcomes with evidence fact IDs and safe `unknown` handling.
+- PostgreSQL full-text trial retrieval, conservative metadata filtering, deterministic candidate scoring, and ranked match results.
+- Durable match-run cancellation requests, safe failure status, and immutable run/version traceability.
+
+The reviewer web interface, autonomous worker dispatcher, semantic retrieval, and evaluation tooling are not implemented yet. Docker Compose currently starts PostgreSQL and Redis; its API, worker, and web services remain development scaffolds.
 
 ## Repository layout
 
 ```text
-apps/        # Web application and API application
-services/    # FHIR normalization, ingestion, retrieval, and matching services
-workers/     # Background jobs
-packages/    # Shared schemas and observability code
-tests/       # Unit, integration, contract, security, and evaluation tests
-datasets/    # Synthetic fixtures and dataset download instructions only
-migrations/  # Database migrations
+apps/api/app/  # FastAPI routes, FHIR import, trial ingestion, matching, and workers
+apps/web/      # Planned reviewer interface scaffold
+migrations/    # Alembic schema history through match-run cancellation support
+tests/         # Unit, integration, and OpenAPI contract checks
+datasets/      # Synthetic FHIR fixtures and dataset instructions
+docker-compose.yml  # Local PostgreSQL, Redis, and scaffold containers
+IMPLEMENTATION_ROADMAP.md  # Completed and remaining delivery phases
 ```
 
 ## Local setup
 
 ### Prerequisites
 
-The planned local environment requires:
+Requirements:
 
-- Docker and Docker Compose
-- Node.js 22.12 or later
+- Docker Desktop with Docker Compose
 - Python 3.12 or later
 
-### Current setup state
+### Run the backend locally
 
-Docker Compose infrastructure and migration dependencies are included, but the API, worker, and web applications are not implemented yet. The next implementation steps are listed in [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md).
-
-Once the local stack exists, the intended startup command will be:
+Start the implemented backend directly from the repository; Docker Compose currently supplies the local PostgreSQL and Redis dependencies.
 
 ```bash
-docker compose up --build
+docker compose up -d postgres redis
 ```
 
-## Backend quality checks
-
-Install backend development dependencies and run the checks from the repository root:
+Create the virtual environment and install the API dependencies:
 
 ```bash
 python -m venv .venv
-.venv/bin/pip install -r apps/api/requirements-dev.txt
-.venv/bin/ruff check .
-.venv/bin/ruff format --check .
-.venv/bin/mypy
-.venv/bin/pytest
+.venv/bin/python -m pip install -r apps/api/requirements-dev.txt
 ```
 
-## Frontend quality checks
-
-Install frontend dependencies and run the checks from the web app directory:
+Set a host-reachable database URL and apply the schema migrations:
 
 ```bash
-cd apps/web
-npm install
-npm run lint
-npm run format
-npm run typecheck
-npm run test
+export DATABASE_URL=postgresql+asyncpg://app:app@localhost:5432/trial_matcher
+.venv/bin/python -m alembic upgrade head
 ```
+
+Start FastAPI with reload enabled:
+
+```bash
+DATABASE_URL=postgresql+asyncpg://app:app@localhost:5432/trial_matcher \
+  .venv/bin/uvicorn app.main:app --app-dir apps/api --reload
+```
+Open <http://127.0.0.1:8000/docs> for the generated OpenAPI interface. The standalone worker dispatcher is not wired to Docker Compose yet; queue routes persist durable jobs, and the worker functions are covered by the integration suite.
+
+## Current API surface
+
+- `GET /health`
+- `POST /patients/import/fhir` and `GET /patients/{patient_id}`
+- `POST /trial-syncs` and `GET /trial-syncs/{job_id}`
+- `POST /match-runs`, `GET /match-runs/{run_id}`, and `GET /match-runs/{run_id}/results`
+- `POST /match-runs/{run_id}/cancel`
+
+`POST /trial-syncs` and `POST /match-runs` deliberately queue durable work; they do not perform external ingestion or matching in the HTTP request. A match result is a ranked retrieval candidate, not an eligibility decision or enrollment recommendation.
+
+## Backend validation
+
+Run the current backend checks from the repository root:
+
+```bash
+.venv/bin/python -m ruff format --check apps/api/app tests
+.venv/bin/python -m ruff check apps/api/app tests
+.venv/bin/python -m mypy apps/api/app
+TEST_DATABASE_URL=postgresql+asyncpg://app:app@localhost:5432/trial_matcher .venv/bin/python -m pytest tests
+```
+
+## Frontend
+
+The reviewer interface is a planned Phase 6 deliverable. There is no runnable web application or frontend validation command yet.
 
 ## Core safety rule
 
