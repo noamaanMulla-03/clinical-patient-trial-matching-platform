@@ -96,8 +96,6 @@ describe('clinical display helpers', () => {
         matched_fields: ['conditions', 'title'],
         matched_fact_ids: ['fact-1'],
       }),
-    ).toBe(
-      'Documented patient-fact terms matched the trial conditions, title fields.',
-    );
+    ).toBe('Documented patient-fact terms matched the trial conditions, title fields.');
   });
 });
