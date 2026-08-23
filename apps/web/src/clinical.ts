@@ -99,6 +99,19 @@ export type TrialCatalogueStatus = {
   };
 };
 
+export type TrialCatalogueTrial = {
+  nct_id: string;
+  title?: string | null;
+  study_status?: string | null;
+  source_updated_at?: string | null;
+  retrieved_at: string;
+};
+
+export type TrialCatalogueTrials = {
+  total_count: number;
+  items: TrialCatalogueTrial[];
+};
+
 export type TrialSyncCreateInput = {
   nctId: string;
   queryTerm: string;

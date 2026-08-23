@@ -16,6 +16,8 @@ import {
   buildBoundedTrialSyncRequest,
   Timeline,
   TrialCatalogueStatus,
+  TrialCatalogueTrial,
+  TrialCatalogueTrials,
   TrialSync,
   TrialSyncCreateInput,
   retrievalReason,
@@ -127,6 +129,7 @@ const blankTrialSyncInput: TrialSyncCreateInput = {
 
 function CatalogueScreen() {
   const [catalogue, setCatalogue] = useState<TrialCatalogueStatus>();
+  const [currentTrials, setCurrentTrials] = useState<TrialCatalogueTrial[]>([]);
   const [syncs, setSyncs] = useState<TrialSync[]>([]);
   const [selection, setSelection] = useState<TrialSyncCreateInput>(blankTrialSyncInput);
   const [message, setMessage] = useState<string>();
@@ -140,8 +143,12 @@ function CatalogueScreen() {
   const refreshCatalogue = useCallback(async () => {
     setRefreshing(true);
     try {
-      const current = await requestJson<TrialCatalogueStatus>('/trial-catalogue');
+      const [current, currentTrialCatalogue] = await Promise.all([
+        requestJson<TrialCatalogueStatus>('/trial-catalogue'),
+        requestJson<TrialCatalogueTrials>('/trial-catalogue/trials'),
+      ]);
       setCatalogue(current);
+      setCurrentTrials(currentTrialCatalogue.items);
       setRefreshNotice(
         `Catalogue refreshed: ${current.searchable_trial_count} public trial record${current.searchable_trial_count === 1 ? '' : 's'} available.`,
       );
@@ -281,6 +288,49 @@ function CatalogueScreen() {
         <p className="muted">Loading catalogue status…</p>
       )}
       {refreshNotice && <p className="catalogue-refresh-notice">{refreshNotice}</p>}
+      {catalogue && (
+        <section className="current-trials" aria-labelledby="current-trials-title">
+          <div className="current-trials-heading">
+            <div>
+              <h3 id="current-trials-title">Trials currently loaded</h3>
+              <p>
+                These are the {catalogue.searchable_trial_count} public trials available
+                for matching now.
+              </p>
+            </div>
+          </div>
+          {currentTrials.length === 0 ? (
+            <p className="muted">No public trials are currently loaded.</p>
+          ) : (
+            <ol>
+              {currentTrials.map((trial) => (
+                <li key={trial.nct_id}>
+                  <a
+                    href={`https://clinicaltrials.gov/study/${encodeURIComponent(trial.nct_id)}`}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    {trial.nct_id}
+                  </a>
+                  <div>
+                    <strong>{trial.title ?? 'Untitled public trial'}</strong>
+                    <span>
+                      {trial.study_status ?? 'Study status not recorded'} · Source
+                      updated {displayDate(trial.source_updated_at)}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
+          {currentTrials.length < catalogue.searchable_trial_count && (
+            <p className="muted">
+              Showing the first {currentTrials.length} trials of{' '}
+              {catalogue.searchable_trial_count}.
+            </p>
+          )}
+        </section>
+      )}
       <div className="catalogue-actions">
         <article className="panel">
           <p className="eyebrow">Local demo collection</p>

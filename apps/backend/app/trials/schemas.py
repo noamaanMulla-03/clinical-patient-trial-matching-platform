@@ -163,3 +163,24 @@ class TrialCatalogueStatusResponse(BaseModel):
     latest_successful_update_at: datetime | None = None
     latest_sync: TrialSyncResponse | None = None
     freshness: TrialCatalogueFreshnessResponse
+
+
+class TrialCatalogueTrialResponse(BaseModel):
+    """Safe current projection fields for one public trial catalogue entry."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    nct_id: str
+    title: str | None = None
+    study_status: str | None = None
+    source_updated_at: datetime | None = None
+    retrieved_at: datetime
+
+
+class TrialCatalogueTrialsResponse(BaseModel):
+    """A bounded, public-only view of the current trial catalogue."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    total_count: int
+    items: list[TrialCatalogueTrialResponse]

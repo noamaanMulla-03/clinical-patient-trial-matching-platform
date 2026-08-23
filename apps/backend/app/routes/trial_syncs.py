@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,6 +16,8 @@ from app.trials.development_collection import queue_development_trial_collection
 from app.trials.schemas import (
     TrialCatalogueFreshnessResponse,
     TrialCatalogueStatusResponse,
+    TrialCatalogueTrialResponse,
+    TrialCatalogueTrialsResponse,
     TrialSyncCreateRequest,
     TrialSyncResponse,
 )
@@ -149,6 +151,46 @@ async def get_trial_catalogue_status(
             newest_source_update_at=freshness_row[3],
             latest_retrieved_at=freshness_row[4],
         ),
+    )
+
+
+@router.get(
+    "/trial-catalogue/trials",
+    operation_id="get_current_trial_catalogue",
+    response_model=TrialCatalogueTrialsResponse,
+    summary="List a bounded public-only view of current trial catalogue entries",
+    responses={
+        200: {"headers": {"X-Request-ID": OPENAPI_REQUEST_ID_RESPONSE_HEADER}},
+        500: {
+            "description": "Unexpected server error.",
+            "model": APIErrorResponse,
+            "headers": {"X-Request-ID": OPENAPI_REQUEST_ID_RESPONSE_HEADER},
+        },
+    },
+)
+async def get_current_trial_catalogue(
+    session: DatabaseSession,
+    limit: Annotated[int, Query(ge=1, le=100)] = 25,
+) -> TrialCatalogueTrialsResponse:
+    """List current public projections without exposing raw snapshots or worker logs."""
+    total_count = int(
+        await session.scalar(select(func.count(Trial.nct_id)).select_from(Trial)) or 0
+    )
+    trials = list(
+        await session.scalars(select(Trial).order_by(Trial.nct_id).limit(limit))
+    )
+    return TrialCatalogueTrialsResponse(
+        total_count=total_count,
+        items=[
+            TrialCatalogueTrialResponse(
+                nct_id=trial.nct_id,
+                title=trial.title,
+                study_status=trial.status,
+                source_updated_at=trial.source_updated_at,
+                retrieved_at=trial.retrieved_at,
+            )
+            for trial in trials
+        ],
     )
 
 

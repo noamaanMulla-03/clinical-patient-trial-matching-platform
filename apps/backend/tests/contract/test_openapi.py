@@ -21,6 +21,9 @@ def test_openapi_contract_documents_the_core_system_routes() -> None:
         "/trial-syncs/development-collection"
     ]["post"]
     catalogue_status_operation = specification["paths"]["/trial-catalogue"]["get"]
+    catalogue_trials_operation = specification["paths"]["/trial-catalogue/trials"][
+        "get"
+    ]
 
     assert app.openapi_url == "/openapi.json"
     assert app.docs_url == "/docs"
@@ -52,6 +55,7 @@ def test_openapi_contract_documents_the_core_system_routes() -> None:
         "TrialSyncCreateRequest",
         "TrialSyncResponse",
         "TrialCatalogueStatusResponse",
+        "TrialCatalogueTrialsResponse",
     }
     assert import_operation["operationId"] == "import_synthetic_fhir_bundle"
     assert import_operation["responses"]["201"]["content"]["application/json"][
@@ -100,3 +104,7 @@ def test_openapi_contract_documents_the_core_system_routes() -> None:
     assert catalogue_status_operation["responses"]["200"]["content"][
         "application/json"
     ]["schema"] == {"$ref": "#/components/schemas/TrialCatalogueStatusResponse"}
+    assert catalogue_trials_operation["operationId"] == "get_current_trial_catalogue"
+    assert catalogue_trials_operation["responses"]["200"]["content"][
+        "application/json"
+    ]["schema"] == {"$ref": "#/components/schemas/TrialCatalogueTrialsResponse"}

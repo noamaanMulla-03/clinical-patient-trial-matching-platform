@@ -33,6 +33,7 @@ from app.fhir.schemas import FHIRImportRequest
 from app.routes.patients import get_synthetic_patient_timeline
 from app.routes.trial_syncs import (
     create_trial_sync,
+    get_current_trial_catalogue,
     get_trial_catalogue_status,
     get_trial_sync,
     queue_fixed_development_trial_collection,
@@ -653,6 +654,7 @@ def test_catalogue_routes_expose_safe_aggregate_readiness_and_fixed_jobs() -> No
         await session.flush()
 
         catalogue = await get_trial_catalogue_status(session)
+        current_trials = await get_current_trial_catalogue(session)
 
         assert catalogue.searchable_trial_count >= 1
         assert catalogue.latest_successful_update_at == retrieved_at
@@ -667,6 +669,8 @@ def test_catalogue_routes_expose_safe_aggregate_readiness_and_fixed_jobs() -> No
             catalogue.latest_sync.selection.collection_id
             == DEVELOPMENT_TRIAL_COLLECTION.collection_id
         )
+        assert current_trials.total_count >= 1
+        assert any(trial.nct_id == nct_id for trial in current_trials.items)
         assert len(queued_demo_syncs) == len(DEVELOPMENT_TRIAL_COLLECTION.nct_ids)
         assert {queued.selection.nct_id for queued in queued_demo_syncs} == set(
             DEVELOPMENT_TRIAL_COLLECTION.nct_ids
