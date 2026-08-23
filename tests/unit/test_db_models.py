@@ -14,6 +14,7 @@ def test_models_register_the_required_tables() -> None:
         "patients",
         "review_decisions",
         "trial_matches",
+        "trial_syncs",
         "trial_versions",
         "trials",
     }
@@ -53,6 +54,46 @@ def test_trial_versions_cannot_duplicate_a_trial_source_snapshot() -> None:
     )
     assert unique_index.unique
     assert [column.name for column in unique_index.columns] == ["nct_id", "source_hash"]
+    assert not trial_versions.c.matching_source_hash.nullable
+    assert not trial_versions.c.requires_reparse.nullable
+    assert {
+        foreign_key.target_fullname
+        for foreign_key in trial_versions.c.matching_reused_from_version_id.foreign_keys
+    } == {"trial_versions.id"}
+    assert {
+        foreign_key.target_fullname
+        for foreign_key in trial_versions.c.superseded_by_version_id.foreign_keys
+    } == {"trial_versions.id"}
+
+
+def test_trial_snapshots_keep_api_retrieval_time_separate_from_ingestion_time() -> None:
+    for table_name in ("trials", "trial_versions"):
+        columns = Base.metadata.tables[table_name].columns
+
+        assert not columns["retrieved_at"].nullable
+        assert not columns["ingested_at"].nullable
+
+
+def test_trials_include_current_searchable_fields_separate_from_raw_source_data() -> (
+    None
+):
+    trial_columns = Base.metadata.tables["trials"].columns
+
+    assert {
+        "nct_id",
+        "current_data",
+        "title",
+        "conditions",
+        "interventions",
+        "status",
+        "phases",
+        "eligibility_text",
+        "minimum_age",
+        "maximum_age",
+        "sex",
+        "locations",
+        "matching_source_hash",
+    } <= {column.name for column in trial_columns}
 
 
 def test_matching_tables_preserve_the_full_evidence_chain() -> None:

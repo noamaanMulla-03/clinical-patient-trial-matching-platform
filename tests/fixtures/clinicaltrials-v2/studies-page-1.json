@@ -1,0 +1,22 @@
+{
+  "studies": [
+    {
+      "protocolSection": {
+        "identificationModule": {
+          "nctId": "NCT01234567",
+          "briefTitle": "Example Melanoma Study"
+        }
+      }
+    },
+    {
+      "protocolSection": {
+        "identificationModule": {
+          "nctId": "NCT76543210",
+          "briefTitle": "Example Lung Cancer Study"
+        }
+      }
+    }
+  ],
+  "nextPageToken": "opaque-page-token-2",
+  "totalCount": 3
+}

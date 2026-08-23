@@ -31,6 +31,7 @@ from app.fhir.schemas import (
     PatientImportSnapshotResponse,
     PatientTimelineResponse,
 )
+from app.trials.extraction import ExtractedTrialFields, extract_trial_fields
 
 _NCT_ID_PATTERN = re.compile(r"NCT\d{8}")
 
@@ -215,22 +216,54 @@ async def store_trial_version(
     *,
     nct_id: str,
     raw_study: Mapping[str, Any],
+    retrieved_at: datetime,
     source_updated_at: datetime | None = None,
+    extracted_fields: ExtractedTrialFields | None = None,
 ) -> TrialVersion:
     """Store a new immutable snapshot and update only the mutable projection."""
     if not _NCT_ID_PATTERN.fullmatch(nct_id):
         raise TrialSnapshotError("Trial snapshot requires an NCT identifier.")
     if source_updated_at is not None and source_updated_at.tzinfo is None:
         raise TrialSnapshotError("Trial source update time must be timezone-aware.")
+    if retrieved_at.tzinfo is None:
+        raise TrialSnapshotError("Trial retrieval time must be timezone-aware.")
 
+    trial_fields = extract_trial_fields(raw_study)
+    if extracted_fields is not None:
+        if extracted_fields != trial_fields:
+            raise TrialSnapshotError(
+                "Trial extracted fields do not match the unmodified source study."
+            )
+        trial_fields = extracted_fields
+    if trial_fields.nct_id != nct_id:
+        raise TrialSnapshotError(
+            "Trial source snapshot NCT identifier does not match its storage identity."
+        )
+
+    projection_values = _trial_projection_values(trial_fields)
+    matching_source_hash = trial_matching_source_hash(trial_fields)
     snapshot, source_hash = canonical_json_snapshot(raw_study)
+    matching_reused_from_version_id = await session.scalar(
+        select(TrialVersion.id)
+        .where(
+            TrialVersion.nct_id == nct_id,
+            TrialVersion.matching_source_hash == matching_source_hash,
+            TrialVersion.requires_reparse.is_(True),
+        )
+        .order_by(TrialVersion.ingested_at.desc(), TrialVersion.id.desc())
+        .limit(1)
+    )
+    requires_reparse = matching_reused_from_version_id is None
     trial = await session.get(Trial, nct_id)
     if trial is None:
         session.add(
             Trial(
                 nct_id=nct_id,
                 current_data=snapshot,
+                **projection_values,
+                matching_source_hash=matching_source_hash,
                 source_updated_at=source_updated_at,
+                retrieved_at=retrieved_at,
             )
         )
         # A source version must never race ahead of its parent trial projection.
@@ -238,15 +271,74 @@ async def store_trial_version(
     else:
         # Only this projection changes; each source snapshot remains immutable.
         trial.current_data = snapshot
+        for field_name, value in projection_values.items():
+            setattr(trial, field_name, value)
+        trial.matching_source_hash = matching_source_hash
         trial.source_updated_at = source_updated_at
+        trial.retrieved_at = retrieved_at
 
     trial_version = TrialVersion(
         id=uuid4(),
         nct_id=nct_id,
         source_hash=source_hash,
+        matching_source_hash=matching_source_hash,
+        matching_reused_from_version_id=matching_reused_from_version_id,
+        requires_reparse=requires_reparse,
         raw_study=snapshot,
         source_updated_at=source_updated_at,
+        retrieved_at=retrieved_at,
     )
     session.add(trial_version)
     await session.flush()
+    previous_current_versions = list(
+        await session.scalars(
+            select(TrialVersion)
+            .where(
+                TrialVersion.nct_id == nct_id,
+                TrialVersion.id != trial_version.id,
+                TrialVersion.superseded_at.is_(None),
+            )
+            .with_for_update()
+        )
+    )
+    # Raw source evidence remains untouched. This one-way lifecycle link states
+    # which later immutable source snapshot replaced the formerly current record.
+    for previous_version in previous_current_versions:
+        previous_version.superseded_by_version_id = trial_version.id
+        previous_version.superseded_at = retrieved_at
+    await session.flush()
     return trial_version
+
+
+def _trial_projection_values(fields: ExtractedTrialFields) -> dict[str, Any]:
+    """Serialize deterministic extracted fields for the mutable trial projection."""
+    return {
+        "title": fields.title,
+        "conditions": fields.conditions,
+        "interventions": [
+            intervention.model_dump(mode="json")
+            for intervention in fields.interventions
+        ],
+        "status": fields.status,
+        "phases": fields.phases,
+        "eligibility_text": fields.eligibility_text,
+        "minimum_age": fields.minimum_age,
+        "maximum_age": fields.maximum_age,
+        "sex": fields.sex,
+        "locations": [
+            location.model_dump(mode="json") for location in fields.locations
+        ],
+    }
+
+
+def trial_matching_source_hash(fields: ExtractedTrialFields) -> str:
+    """Hash only fields that can affect trial retrieval or criterion evaluation."""
+    # Keep raw source identity separate: changes in an unrelated registration field
+    # still receive an immutable source snapshot but do not falsely invalidate work.
+    _, matching_source_hash = canonical_json_snapshot(
+        {
+            "nct_id": fields.nct_id,
+            "matching_fields": _trial_projection_values(fields),
+        }
+    )
+    return matching_source_hash

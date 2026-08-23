@@ -1,0 +1,13 @@
+{
+  "studies": [
+    {
+      "protocolSection": {
+        "identificationModule": {
+          "nctId": "NCT99999999",
+          "briefTitle": "Example Final Result"
+        }
+      }
+    }
+  ],
+  "totalCount": 3
+}

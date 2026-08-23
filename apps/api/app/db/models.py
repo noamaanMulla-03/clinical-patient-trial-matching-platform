@@ -118,10 +118,87 @@ class Trial(Base):
 
     nct_id: Mapped[str] = mapped_column(String(16), primary_key=True)
     current_data: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    title: Mapped[str | None] = mapped_column(Text)
+    conditions: Mapped[list[str]] = mapped_column(
+        JSONB, nullable=False, server_default="[]"
+    )
+    interventions: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, nullable=False, server_default="[]"
+    )
+    status: Mapped[str | None] = mapped_column(String(64))
+    phases: Mapped[list[str]] = mapped_column(
+        JSONB, nullable=False, server_default="[]"
+    )
+    eligibility_text: Mapped[str | None] = mapped_column(Text)
+    minimum_age: Mapped[str | None] = mapped_column(String(64))
+    maximum_age: Mapped[str | None] = mapped_column(String(64))
+    sex: Mapped[str | None] = mapped_column(String(32))
+    locations: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, nullable=False, server_default="[]"
+    )
+    matching_source_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     source_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    retrieved_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     ingested_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+class TrialSync(Base):
+    """Operational state, safe failures, counts, and freshness metrics for one sync."""
+
+    __tablename__ = "trial_syncs"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('queued', 'running', 'completed', 'failed')",
+            name="ck_trial_syncs_status",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4
+    )
+    request_parameters: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, server_default="queued"
+    )
+    failure_code: Mapped[str | None] = mapped_column(String(64))
+    failure_message: Mapped[str | None] = mapped_column(Text)
+    pages_fetched: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0"
+    )
+    studies_processed: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0"
+    )
+    versions_created: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0"
+    )
+    unchanged_studies: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0"
+    )
+    versions_requiring_reparse: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0"
+    )
+    versions_reusing_matching_results: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0"
+    )
+    source_records_with_update_time: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0"
+    )
+    source_records_missing_update_time: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0"
+    )
+    source_records_invalid_update_time: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0"
+    )
+    max_source_lag_seconds: Mapped[int | None] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class TrialVersion(Base):
@@ -130,8 +207,22 @@ class TrialVersion(Base):
     __tablename__ = "trial_versions"
     __table_args__ = (
         Index("ix_trial_versions_nct_id_ingested_at", "nct_id", "ingested_at"),
+        Index("ix_trial_versions_nct_id_superseded_at", "nct_id", "superseded_at"),
+        Index(
+            "ix_trial_versions_nct_id_matching_source_hash",
+            "nct_id",
+            "matching_source_hash",
+        ),
         Index(
             "uq_trial_versions_nct_id_source_hash", "nct_id", "source_hash", unique=True
+        ),
+        CheckConstraint(
+            "requires_reparse IS TRUE OR matching_reused_from_version_id IS NOT NULL",
+            name="ck_trial_versions_reparse_source",
+        ),
+        CheckConstraint(
+            "(superseded_at IS NULL) = (superseded_by_version_id IS NULL)",
+            name="ck_trial_versions_supersession_pair",
         ),
     )
 
@@ -142,8 +233,20 @@ class TrialVersion(Base):
         ForeignKey("trials.nct_id", ondelete="RESTRICT"), nullable=False
     )
     source_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    matching_source_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    matching_reused_from_version_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("trial_versions.id", ondelete="RESTRICT")
+    )
+    requires_reparse: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    superseded_by_version_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("trial_versions.id", ondelete="RESTRICT")
+    )
+    superseded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     raw_study: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     source_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    retrieved_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     ingested_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

@@ -12,6 +12,8 @@ def test_openapi_contract_documents_the_core_system_routes() -> None:
     health_operation = specification["paths"]["/health"]["get"]
     import_operation = specification["paths"]["/patients/import/fhir"]["post"]
     patient_operation = specification["paths"]["/patients/{patient_id}"]["get"]
+    create_trial_sync_operation = specification["paths"]["/trial-syncs"]["post"]
+    get_trial_sync_operation = specification["paths"]["/trial-syncs/{job_id}"]["get"]
 
     assert app.openapi_url == "/openapi.json"
     assert app.docs_url == "/docs"
@@ -39,6 +41,8 @@ def test_openapi_contract_documents_the_core_system_routes() -> None:
         "FHIRImportResponse",
         "HealthResponse",
         "PatientTimelineResponse",
+        "TrialSyncCreateRequest",
+        "TrialSyncResponse",
     }
     assert import_operation["operationId"] == "import_synthetic_fhir_bundle"
     assert import_operation["responses"]["201"]["content"]["application/json"][
@@ -52,5 +56,19 @@ def test_openapi_contract_documents_the_core_system_routes() -> None:
         "schema"
     ] == {"$ref": "#/components/schemas/PatientTimelineResponse"}
     assert patient_operation["responses"]["404"]["content"]["application/json"][
+        "schema"
+    ] == {"$ref": "#/components/schemas/APIErrorResponse"}
+    assert create_trial_sync_operation["operationId"] == "create_trial_sync"
+    assert create_trial_sync_operation["responses"]["202"]["content"][
+        "application/json"
+    ]["schema"] == {"$ref": "#/components/schemas/TrialSyncResponse"}
+    assert create_trial_sync_operation["responses"]["422"]["content"][
+        "application/json"
+    ]["schema"] == {"$ref": "#/components/schemas/APIErrorResponse"}
+    assert get_trial_sync_operation["operationId"] == "get_trial_sync"
+    assert get_trial_sync_operation["responses"]["200"]["content"]["application/json"][
+        "schema"
+    ] == {"$ref": "#/components/schemas/TrialSyncResponse"}
+    assert get_trial_sync_operation["responses"]["404"]["content"]["application/json"][
         "schema"
     ] == {"$ref": "#/components/schemas/APIErrorResponse"}

@@ -1,0 +1,33 @@
+{
+  "protocolSection": {
+    "identificationModule": {
+      "nctId": "NCT01234567",
+      "briefTitle": "Example Melanoma Study",
+      "organization": {
+        "fullName": "Example Research Organization",
+        "class": "OTHER"
+      }
+    },
+    "statusModule": {
+      "overallStatus": "RECRUITING",
+      "lastUpdatePostDateStruct": {
+        "date": "2026-08-01",
+        "type": "ACTUAL"
+      }
+    },
+    "conditionsModule": {
+      "conditions": ["Melanoma"]
+    },
+    "eligibilityModule": {
+      "eligibilityCriteria": "Example public eligibility text.",
+      "healthyVolunteers": false,
+      "sex": "ALL",
+      "minimumAge": "18 Years"
+    }
+  },
+  "derivedSection": {
+    "miscInfoModule": {
+      "versionHolder": "2026-08-01"
+    }
+  }
+}
