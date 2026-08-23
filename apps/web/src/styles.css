@@ -224,6 +224,9 @@ textarea {
   margin: 0;
   color: #58717d;
 }
+.screen-heading > .button {
+  margin: 0;
+}
 .lookup {
   width: min(100%, 435px);
 }
@@ -393,6 +396,94 @@ textarea {
   border-radius: 10px;
   color: #607983;
   text-align: center;
+}
+.catalogue-status-card {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.4fr);
+  gap: 22px;
+  padding: 20px;
+  border: 1px solid #b8d2d7;
+  border-radius: 10px;
+  background: #edf8f7;
+}
+.catalogue-status-card strong {
+  display: block;
+  margin-top: 10px;
+  color: #1f4c62;
+}
+.catalogue-status-card dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+}
+.catalogue-status-card dt {
+  color: #708894;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.catalogue-status-card dd {
+  margin: 4px 0 0;
+  color: #24495d;
+  font-weight: 600;
+}
+.catalogue-status-card .quality-banner {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.catalogue-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 20px;
+}
+.catalogue-actions .panel h3 {
+  margin-bottom: 8px;
+}
+.advanced-selection summary {
+  color: #17364b;
+  cursor: pointer;
+  font-weight: 750;
+}
+.advanced-selection > p {
+  margin-top: 14px;
+}
+.catalogue-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 14px;
+}
+.catalogue-form-grid label {
+  margin-top: 16px;
+}
+.sync-list {
+  margin-top: 26px;
+}
+.sync-list > h3 {
+  margin-bottom: 12px;
+}
+.trial-sync-card + .trial-sync-card {
+  margin-top: 12px;
+}
+.trial-sync-card h4 {
+  margin: 0;
+}
+.catalogue-empty-notice button {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: #075a9b;
+  background: transparent;
+  font-weight: 750;
+  text-decoration: underline;
+}
+.catalogue-ready-notice {
+  margin: 14px 0;
+  padding: 10px 13px;
+  border-radius: 7px;
+  color: #0b684f;
+  background: #daf4e8;
 }
 .run-details {
   padding: 24px;
@@ -732,7 +823,10 @@ textarea {
   .screen-grid,
   .run-grid,
   .criterion-grid,
-  .correction-fields {
+  .correction-fields,
+  .catalogue-actions,
+  .catalogue-status-card,
+  .catalogue-form-grid {
     grid-template-columns: 1fr;
   }
   .lookup {
@@ -741,6 +835,9 @@ textarea {
   }
   .snapshot-bar dl {
     margin: 18px 0;
+  }
+  .catalogue-status-card dl {
+    grid-template-columns: 1fr;
   }
   .fact-meta {
     grid-template-columns: 1fr;

@@ -12,7 +12,7 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from app.clients.clinicaltrials import (
@@ -31,7 +31,12 @@ from app.db.models import (
 from app.errors import APIError
 from app.fhir.schemas import FHIRImportRequest
 from app.routes.patients import get_synthetic_patient_timeline
-from app.routes.trial_syncs import create_trial_sync, get_trial_sync
+from app.routes.trial_syncs import (
+    create_trial_sync,
+    get_trial_catalogue_status,
+    get_trial_sync,
+    queue_fixed_development_trial_collection,
+)
 from app.services.source_snapshots import (
     persist_synthetic_patient_import,
     store_trial_version,
@@ -614,6 +619,61 @@ def test_patient_timeline_returns_one_source_linked_completed_import() -> None:
             fact.source_resource["id"] == fact.source.resource_id
             and fact.source_resource["resourceType"] == fact.source.resource_type
             for fact in timeline.facts
+        )
+
+    _run_database_check(check)
+
+
+@pytest.mark.integration
+def test_catalogue_routes_expose_safe_aggregate_readiness_and_fixed_jobs() -> None:
+    """Catalogue readiness remains aggregate-only while the demo membership is fixed."""
+
+    async def check(session: AsyncSession) -> None:
+        nct_id = f"NCT{uuid4().int % 100_000_000:08d}"
+        retrieved_at = datetime(2026, 8, 24, tzinfo=UTC)
+        sync = await create_trial_sync(TrialSyncCreateRequest(nct_id=nct_id), session)
+        queued_demo_syncs = await queue_fixed_development_trial_collection(session)
+        await store_trial_version(
+            session,
+            nct_id=nct_id,
+            raw_study={
+                "protocolSection": {
+                    "identificationModule": {"nctId": nct_id},
+                    "statusModule": {"lastUpdateSubmitDate": "2026-08-20"},
+                }
+            },
+            retrieved_at=retrieved_at,
+            source_updated_at=datetime(2026, 8, 20, tzinfo=UTC),
+        )
+        await session.execute(
+            update(TrialSync)
+            .where(TrialSync.id == sync.id)
+            .values(status="completed", completed_at=retrieved_at)
+        )
+        await session.flush()
+
+        catalogue = await get_trial_catalogue_status(session)
+
+        assert catalogue.searchable_trial_count >= 1
+        assert catalogue.latest_successful_update_at == retrieved_at
+        assert catalogue.freshness.records_with_source_update_time >= 1
+        assert catalogue.freshness.records_missing_source_update_time >= 0
+        assert catalogue.freshness.newest_source_update_at == datetime(
+            2026, 8, 20, tzinfo=UTC
+        )
+        assert catalogue.latest_sync is not None
+        assert catalogue.state == "updating"
+        assert (
+            catalogue.latest_sync.selection.collection_id
+            == DEVELOPMENT_TRIAL_COLLECTION.collection_id
+        )
+        assert len(queued_demo_syncs) == len(DEVELOPMENT_TRIAL_COLLECTION.nct_ids)
+        assert {queued.selection.nct_id for queued in queued_demo_syncs} == set(
+            DEVELOPMENT_TRIAL_COLLECTION.nct_ids
+        )
+        assert all(
+            queued.selection.collection_id == DEVELOPMENT_TRIAL_COLLECTION.collection_id
+            for queued in queued_demo_syncs
         )
 
     _run_database_check(check)

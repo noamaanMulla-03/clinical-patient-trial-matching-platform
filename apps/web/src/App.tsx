@@ -13,13 +13,22 @@ import {
   MatchCandidate,
   MatchRun,
   ResultTab,
+  buildBoundedTrialSyncRequest,
   Timeline,
+  TrialCatalogueStatus,
+  TrialSync,
+  TrialSyncCreateInput,
   retrievalReason,
 } from './clinical';
 
-type Screen = 'import' | 'timeline' | 'match-run' | 'criterion-detail';
+type Screen = 'catalogue' | 'import' | 'timeline' | 'match-run' | 'criterion-detail';
 
 const screens: { id: Screen; label: string; description: string }[] = [
+  {
+    id: 'catalogue',
+    label: 'Trial catalogue',
+    description: 'Public trial setup',
+  },
   { id: 'import', label: 'Patient import', description: 'Synthetic FHIR R4 only' },
   { id: 'timeline', label: 'Patient timeline', description: 'Source-linked facts' },
   { id: 'match-run', label: 'Match-run status', description: 'Operational review' },
@@ -31,7 +40,7 @@ const screens: { id: Screen; label: string; description: string }[] = [
 ];
 
 function App() {
-  const [screen, setScreen] = useState<Screen>('import');
+  const [screen, setScreen] = useState<Screen>('catalogue');
   const [patientId, setPatientId] = useState('');
   const [patientImportId, setPatientImportId] = useState('');
   const [criterionResultId, setCriterionResultId] = useState('');
@@ -66,6 +75,7 @@ function App() {
         ))}
       </nav>
 
+      {screen === 'catalogue' && <CatalogueScreen />}
       {screen === 'import' && (
         <ImportScreen
           onImported={(result) => {
@@ -87,6 +97,7 @@ function App() {
       )}
       {screen === 'match-run' && (
         <MatchRunScreen
+          onOpenCatalogue={() => setScreen('catalogue')}
           patientImportId={patientImportId}
           onPatientImportIdChange={setPatientImportId}
           onOpenCriterion={(id) => {
@@ -103,6 +114,409 @@ function App() {
       )}
     </main>
   );
+}
+
+const blankTrialSyncInput: TrialSyncCreateInput = {
+  nctId: '',
+  queryTerm: '',
+  condition: '',
+  startPage: '',
+  endPage: '',
+  pageSize: '25',
+};
+
+function CatalogueScreen() {
+  const [catalogue, setCatalogue] = useState<TrialCatalogueStatus>();
+  const [syncs, setSyncs] = useState<TrialSync[]>([]);
+  const [selection, setSelection] = useState<TrialSyncCreateInput>(blankTrialSyncInput);
+  const [message, setMessage] = useState<string>();
+  const [busy, setBusy] = useState(false);
+  const activeSyncIds = syncs
+    .filter((sync) => sync.status === 'queued' || sync.status === 'running')
+    .map((sync) => sync.id);
+
+  const refreshCatalogue = useCallback(async () => {
+    try {
+      const current = await requestJson<TrialCatalogueStatus>('/trial-catalogue');
+      setCatalogue(current);
+      const latestSync = current.latest_sync;
+      if (latestSync)
+        setSyncs((previous) =>
+          previous.some((sync) => sync.id === latestSync.id)
+            ? previous
+            : [latestSync, ...previous],
+        );
+    } catch {
+      setMessage('The trial catalogue status could not be loaded.');
+    }
+  }, []);
+
+  const refreshSyncs = useCallback(
+    async (syncIds: string[]) => {
+      try {
+        const updates = await Promise.all(
+          syncIds.map((id) =>
+            requestJson<TrialSync>(`/trial-syncs/${encodeURIComponent(id)}`),
+          ),
+        );
+        setSyncs((previous) =>
+          previous.map(
+            (sync) => updates.find((update) => update.id === sync.id) ?? sync,
+          ),
+        );
+        await refreshCatalogue();
+      } catch {
+        setMessage('The trial update status could not be refreshed.');
+      }
+    },
+    [refreshCatalogue],
+  );
+
+  useEffect(() => {
+    void refreshCatalogue();
+  }, [refreshCatalogue]);
+  useEffect(() => {
+    if (activeSyncIds.length === 0) return;
+    const interval = window.setInterval(() => void refreshSyncs(activeSyncIds), 3_000);
+    return () => window.clearInterval(interval);
+  }, [activeSyncIds, refreshSyncs]);
+
+  async function queueDemoCollection() {
+    setBusy(true);
+    setMessage(undefined);
+    try {
+      const queued = await requestJson<TrialSync[]>(
+        '/trial-syncs/development-collection',
+        { method: 'POST' },
+      );
+      setSyncs(queued);
+      await refreshCatalogue();
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : 'The fixed demo trial collection could not be queued.',
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function queueAdvancedSelection(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage(undefined);
+    let request;
+    try {
+      request = buildBoundedTrialSyncRequest(selection);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Check the trial selection.');
+      return;
+    }
+    setBusy(true);
+    try {
+      const queued = await requestJson<TrialSync>('/trial-syncs', {
+        method: 'POST',
+        body: JSON.stringify(request),
+      });
+      setSyncs([queued]);
+      await refreshCatalogue();
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : 'The selected trial update could not be queued.',
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const displayedSyncs = useMemo(() => {
+    const latest = catalogue?.latest_sync;
+    return latest && !syncs.some((sync) => sync.id === latest.id)
+      ? [latest, ...syncs]
+      : syncs;
+  }, [catalogue?.latest_sync, syncs]);
+
+  return (
+    <section aria-labelledby="catalogue-title">
+      <div className="screen-heading">
+        <div>
+          <p className="eyebrow">Step 0 · Local demo administration</p>
+          <h2 id="catalogue-title">Trial catalogue</h2>
+          <p>
+            Load bounded public ClinicalTrials.gov records for this local research
+            demonstration. These controls do not use patient information.
+          </p>
+        </div>
+        <button
+          className="button secondary"
+          onClick={() => void refreshCatalogue()}
+          type="button"
+        >
+          Refresh status
+        </button>
+      </div>
+      <p className="safety-note inline">
+        Trial retrieval creates review candidates only. It does not determine
+        eligibility, treatment, enrollment, or outreach.
+      </p>
+      {message && (
+        <p className="error" role="alert">
+          {message}
+        </p>
+      )}
+      {catalogue ? (
+        <CatalogueStatusCard catalogue={catalogue} />
+      ) : (
+        <p className="muted">Loading catalogue status…</p>
+      )}
+      <div className="catalogue-actions">
+        <article className="panel">
+          <p className="eyebrow">Local demo collection</p>
+          <h3>Small, reproducible public trial set</h3>
+          <p>
+            Queue the fixed source-controlled collection used to check the review
+            workflow. It contains no patient information.
+          </p>
+          <button
+            className="button"
+            disabled={busy}
+            onClick={() => void queueDemoCollection()}
+            type="button"
+          >
+            {busy ? 'Queuing…' : 'Load demo trials'}
+          </button>
+        </article>
+        <details className="panel advanced-selection">
+          <summary>Advanced bounded update</summary>
+          <p>
+            Choose one public source selection. These fields control trial retrieval,
+            not patient matching.
+          </p>
+          <form onSubmit={queueAdvancedSelection}>
+            <div className="catalogue-form-grid">
+              <label htmlFor="trial-nct-id">
+                Specific NCT ID
+                <input
+                  id="trial-nct-id"
+                  onChange={(event) =>
+                    setSelection({ ...selection, nctId: event.target.value })
+                  }
+                  placeholder="NCT02434107"
+                  value={selection.nctId}
+                />
+              </label>
+              <label htmlFor="trial-condition">
+                Condition
+                <input
+                  id="trial-condition"
+                  onChange={(event) =>
+                    setSelection({ ...selection, condition: event.target.value })
+                  }
+                  placeholder="e.g. melanoma"
+                  value={selection.condition}
+                />
+              </label>
+              <label htmlFor="trial-search">
+                Search phrase
+                <input
+                  id="trial-search"
+                  onChange={(event) =>
+                    setSelection({ ...selection, queryTerm: event.target.value })
+                  }
+                  placeholder="e.g. immunotherapy"
+                  value={selection.queryTerm}
+                />
+              </label>
+              <label htmlFor="trial-page-size">
+                Page size
+                <input
+                  id="trial-page-size"
+                  min="1"
+                  max="1000"
+                  onChange={(event) =>
+                    setSelection({ ...selection, pageSize: event.target.value })
+                  }
+                  type="number"
+                  value={selection.pageSize}
+                />
+              </label>
+              <label htmlFor="trial-start-page">
+                Start page
+                <input
+                  id="trial-start-page"
+                  min="1"
+                  onChange={(event) =>
+                    setSelection({ ...selection, startPage: event.target.value })
+                  }
+                  type="number"
+                  value={selection.startPage}
+                />
+              </label>
+              <label htmlFor="trial-end-page">
+                End page
+                <input
+                  id="trial-end-page"
+                  min="1"
+                  onChange={(event) =>
+                    setSelection({ ...selection, endPage: event.target.value })
+                  }
+                  type="number"
+                  value={selection.endPage}
+                />
+              </label>
+            </div>
+            <button className="button" disabled={busy} type="submit">
+              {busy ? 'Queuing…' : 'Queue trial update'}
+            </button>
+          </form>
+        </details>
+      </div>
+      {displayedSyncs.length > 0 && (
+        <section className="sync-list" aria-labelledby="latest-update-title">
+          <h3 id="latest-update-title">Latest update</h3>
+          {displayedSyncs.map((sync) => (
+            <TrialSyncCard
+              key={sync.id}
+              onRefresh={() => void refreshSyncs([sync.id])}
+              sync={sync}
+            />
+          ))}
+        </section>
+      )}
+    </section>
+  );
+}
+
+function CatalogueStatusCard({ catalogue }: { catalogue: TrialCatalogueStatus }) {
+  const stateText =
+    catalogue.state === 'empty'
+      ? 'Catalogue empty'
+      : catalogue.state === 'updating'
+        ? 'Update in progress'
+        : 'Catalogue ready';
+  return (
+    <article className="catalogue-status-card">
+      <div>
+        <span
+          className={`status ${catalogue.state === 'ready' ? 'completed' : catalogue.state === 'updating' ? 'running' : 'queued'}`}
+        >
+          {stateText}
+        </span>
+        <strong>
+          {catalogue.searchable_trial_count} current searchable public trial records
+        </strong>
+      </div>
+      <dl>
+        <div>
+          <dt>Latest successful update</dt>
+          <dd>{displayDate(catalogue.latest_successful_update_at)}</dd>
+        </div>
+        <div>
+          <dt>Source update dates</dt>
+          <dd>
+            {catalogue.freshness.records_with_source_update_time} recorded ·{' '}
+            {catalogue.freshness.records_missing_source_update_time} not recorded
+          </dd>
+        </div>
+        <div>
+          <dt>Most recent source update</dt>
+          <dd>{displayDate(catalogue.freshness.newest_source_update_at)}</dd>
+        </div>
+        <div>
+          <dt>Last retrieved</dt>
+          <dd>{displayDate(catalogue.freshness.latest_retrieved_at)}</dd>
+        </div>
+      </dl>
+      {catalogue.state === 'empty' && (
+        <p className="quality-banner">
+          No trials are loaded yet. Load a bounded public trial collection before
+          running patient matches.
+        </p>
+      )}
+    </article>
+  );
+}
+
+function TrialSyncCard({
+  sync,
+  onRefresh,
+}: {
+  sync: TrialSync;
+  onRefresh: () => void;
+}) {
+  const statusText =
+    sync.status === 'queued'
+      ? 'Waiting to start'
+      : sync.status === 'running'
+        ? 'Loading public trial records'
+        : sync.status === 'completed'
+          ? 'Update completed'
+          : 'Update could not be completed';
+  return (
+    <article className="run-details trial-sync-card">
+      <div className="run-status">
+        <div>
+          <p className="eyebrow">Public trial update</p>
+          <h4>
+            <span className={`status ${sync.status}`}>{statusText}</span>
+          </h4>
+          <p>{trialSyncSelectionLabel(sync.selection)}</p>
+        </div>
+        <button className="button secondary" onClick={onRefresh} type="button">
+          Refresh
+        </button>
+      </div>
+      <div className="run-grid">
+        <dl>
+          <div>
+            <dt>Queued</dt>
+            <dd>{displayDate(sync.created_at)}</dd>
+          </div>
+          <div>
+            <dt>Started</dt>
+            <dd>{displayDate(sync.started_at)}</dd>
+          </div>
+          <div>
+            <dt>Completed</dt>
+            <dd>{displayDate(sync.completed_at)}</dd>
+          </div>
+        </dl>
+        <dl>
+          <div>
+            <dt>Trials processed</dt>
+            <dd>{sync.counts.studies_processed}</dd>
+          </div>
+          <div>
+            <dt>New versions stored</dt>
+            <dd>{sync.counts.versions_created}</dd>
+          </div>
+          <div>
+            <dt>Unchanged records</dt>
+            <dd>{sync.counts.unchanged_studies}</dd>
+          </div>
+          <div>
+            <dt>Source update dates</dt>
+            <dd>
+              {sync.source_lag.records_with_update_time} recorded ·{' '}
+              {sync.source_lag.records_missing_update_time} missing ·{' '}
+              {sync.source_lag.records_invalid_update_time} invalid
+            </dd>
+          </div>
+        </dl>
+      </div>
+      {sync.failure && <p className="error">{sync.failure.message}</p>}
+    </article>
+  );
+}
+
+function trialSyncSelectionLabel(selection: TrialSync['selection']): string {
+  if (selection.collection_id) return 'Fixed local development collection';
+  if (selection.nct_id) return `Specific NCT ID: ${selection.nct_id}`;
+  if (selection.condition) return `Condition: ${selection.condition}`;
+  if (selection.query_term) return `Search phrase: ${selection.query_term}`;
+  return `Explicit pages ${selection.start_page} to ${selection.end_page}`;
 }
 
 function ImportScreen({ onImported }: { onImported: (result: ImportResult) => void }) {
@@ -369,10 +783,12 @@ function FactCard({ fact, patientId }: { fact: Fact; patientId: string }) {
 }
 
 function MatchRunScreen({
+  onOpenCatalogue,
   patientImportId,
   onPatientImportIdChange,
   onOpenCriterion,
 }: {
+  onOpenCatalogue: () => void;
   patientImportId: string;
   onPatientImportIdChange: (value: string) => void;
   onOpenCriterion: (id: string) => void;
@@ -380,6 +796,7 @@ function MatchRunScreen({
   const [requestedImportId, setRequestedImportId] = useState(patientImportId);
   const [run, setRun] = useState<MatchRun>();
   const [candidates, setCandidates] = useState<MatchCandidate[]>([]);
+  const [catalogue, setCatalogue] = useState<TrialCatalogueStatus>();
   const [message, setMessage] = useState<string>();
   const [busy, setBusy] = useState(false);
   const activeRunId = run?.id;
@@ -387,6 +804,11 @@ function MatchRunScreen({
   useEffect(() => {
     setRequestedImportId(patientImportId);
   }, [patientImportId]);
+  useEffect(() => {
+    void requestJson<TrialCatalogueStatus>('/trial-catalogue')
+      .then(setCatalogue)
+      .catch(() => setMessage('The trial catalogue status could not be loaded.'));
+  }, []);
   const refresh = useCallback(async (runId: string) => {
     try {
       const current = await requestJson<MatchRun>(
@@ -417,6 +839,16 @@ function MatchRunScreen({
     event.preventDefault();
     const id = requestedImportId.trim();
     if (!id) return;
+    if (!catalogue) {
+      setMessage('Wait for the trial catalogue status before queuing a match run.');
+      return;
+    }
+    if (catalogue.state === 'empty') {
+      setMessage(
+        'The trial catalogue is empty. Load public trial records before matching.',
+      );
+      return;
+    }
     setBusy(true);
     setMessage(undefined);
     setCandidates([]);
@@ -470,7 +902,11 @@ function MatchRunScreen({
               placeholder="UUID from import"
               required
             />
-            <button className="button" disabled={busy} type="submit">
+            <button
+              className="button"
+              disabled={busy || !catalogue || catalogue.state === 'empty'}
+              type="submit"
+            >
               Queue run
             </button>
           </div>
@@ -480,6 +916,20 @@ function MatchRunScreen({
         Results are review candidates only; no eligibility, treatment, or enrollment
         decision is made here.
       </p>
+      {catalogue?.state === 'empty' && (
+        <p className="quality-banner catalogue-empty-notice">
+          Trial catalogue is empty. Matching would return no results.{' '}
+          <button onClick={onOpenCatalogue} type="button">
+            Open Trial catalogue
+          </button>
+        </p>
+      )}
+      {catalogue?.state === 'ready' && (
+        <p className="catalogue-ready-notice">
+          Trial catalogue ready: {catalogue.searchable_trial_count} public trial record
+          {catalogue.searchable_trial_count === 1 ? '' : 's'} available.
+        </p>
+      )}
       {message && (
         <p className="error" role="alert">
           {message}

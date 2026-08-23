@@ -17,6 +17,10 @@ def test_openapi_contract_documents_the_core_system_routes() -> None:
     ]["get"]
     create_trial_sync_operation = specification["paths"]["/trial-syncs"]["post"]
     get_trial_sync_operation = specification["paths"]["/trial-syncs/{job_id}"]["get"]
+    queue_development_collection_operation = specification["paths"][
+        "/trial-syncs/development-collection"
+    ]["post"]
+    catalogue_status_operation = specification["paths"]["/trial-catalogue"]["get"]
 
     assert app.openapi_url == "/openapi.json"
     assert app.docs_url == "/docs"
@@ -47,6 +51,7 @@ def test_openapi_contract_documents_the_core_system_routes() -> None:
         "PatientFactSourceResponse",
         "TrialSyncCreateRequest",
         "TrialSyncResponse",
+        "TrialCatalogueStatusResponse",
     }
     assert import_operation["operationId"] == "import_synthetic_fhir_bundle"
     assert import_operation["responses"]["201"]["content"]["application/json"][
@@ -80,3 +85,18 @@ def test_openapi_contract_documents_the_core_system_routes() -> None:
     assert get_trial_sync_operation["responses"]["404"]["content"]["application/json"][
         "schema"
     ] == {"$ref": "#/components/schemas/APIErrorResponse"}
+    assert (
+        queue_development_collection_operation["operationId"]
+        == "queue_development_trial_collection"
+    )
+    assert queue_development_collection_operation["responses"]["202"]["content"][
+        "application/json"
+    ]["schema"] == {
+        "items": {"$ref": "#/components/schemas/TrialSyncResponse"},
+        "title": "Response Queue Development Trial Collection",
+        "type": "array",
+    }
+    assert catalogue_status_operation["operationId"] == "get_trial_catalogue_status"
+    assert catalogue_status_operation["responses"]["200"]["content"][
+        "application/json"
+    ]["schema"] == {"$ref": "#/components/schemas/TrialCatalogueStatusResponse"}

@@ -139,3 +139,27 @@ class TrialSyncResponse(BaseModel):
             started_at=sync.started_at,
             completed_at=sync.completed_at,
         )
+
+
+class TrialCatalogueFreshnessResponse(BaseModel):
+    """Aggregate freshness for the current public-trial projection only."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    records_with_source_update_time: int
+    records_missing_source_update_time: int
+    oldest_source_update_at: datetime | None = None
+    newest_source_update_at: datetime | None = None
+    latest_retrieved_at: datetime | None = None
+
+
+class TrialCatalogueStatusResponse(BaseModel):
+    """Safe readiness state for the local public trial catalogue."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    state: Literal["empty", "ready", "updating"]
+    searchable_trial_count: int
+    latest_successful_update_at: datetime | None = None
+    latest_sync: TrialSyncResponse | None = None
+    freshness: TrialCatalogueFreshnessResponse

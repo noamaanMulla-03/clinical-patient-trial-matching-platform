@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { apiPath } from '../api';
 import {
+  buildBoundedTrialSyncRequest,
   displayFactValue,
   factFreshness,
   filterMatchCandidates,
@@ -22,6 +23,34 @@ const observation: Fact = {
 };
 
 describe('clinical display helpers', () => {
+  it('keeps advanced catalogue selections bounded before queueing', () => {
+    expect(
+      buildBoundedTrialSyncRequest({
+        nctId: '',
+        queryTerm: '',
+        condition: 'diabetes',
+        startPage: '1',
+        endPage: '2',
+        pageSize: '25',
+      }),
+    ).toEqual({
+      condition: 'diabetes',
+      start_page: 1,
+      end_page: 2,
+      page_size: 25,
+    });
+    expect(() =>
+      buildBoundedTrialSyncRequest({
+        nctId: 'NCT02434107',
+        queryTerm: 'melanoma',
+        condition: '',
+        startPage: '',
+        endPage: '',
+        pageSize: '25',
+      }),
+    ).toThrow('Choose one source selection');
+  });
+
   it('keeps fact values and their supplied units visible', () => {
     expect(displayFactValue(observation)).toBe(
       'numeric value: 7.2 · status: final mmol/L',

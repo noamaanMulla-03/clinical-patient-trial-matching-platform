@@ -50,6 +50,118 @@ export type MatchRun = {
   failure?: { code: string; message: string } | null;
 };
 
+export type TrialSyncSelection = {
+  mode: 'nct_id' | 'search' | 'page_range';
+  collection_id?: string | null;
+  nct_id?: string | null;
+  query_term?: string | null;
+  condition?: string | null;
+  start_page?: number | null;
+  end_page?: number | null;
+  page_size: number;
+};
+
+export type TrialSync = {
+  id: string;
+  status: 'queued' | 'running' | 'completed' | 'failed';
+  selection: TrialSyncSelection;
+  counts: {
+    pages_fetched: number;
+    studies_processed: number;
+    versions_created: number;
+    unchanged_studies: number;
+    versions_requiring_reparse: number;
+    versions_reusing_matching_results: number;
+  };
+  source_lag: {
+    records_with_update_time: number;
+    records_missing_update_time: number;
+    records_invalid_update_time: number;
+    max_lag_seconds?: number | null;
+  };
+  failure?: { code: string; message: string } | null;
+  created_at: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+};
+
+export type TrialCatalogueStatus = {
+  state: 'empty' | 'ready' | 'updating';
+  searchable_trial_count: number;
+  latest_successful_update_at?: string | null;
+  latest_sync?: TrialSync | null;
+  freshness: {
+    records_with_source_update_time: number;
+    records_missing_source_update_time: number;
+    oldest_source_update_at?: string | null;
+    newest_source_update_at?: string | null;
+    latest_retrieved_at?: string | null;
+  };
+};
+
+export type TrialSyncCreateInput = {
+  nctId: string;
+  queryTerm: string;
+  condition: string;
+  startPage: string;
+  endPage: string;
+  pageSize: string;
+};
+
+export type BoundedTrialSyncRequest = {
+  nct_id?: string;
+  query_term?: string;
+  condition?: string;
+  start_page?: number;
+  end_page?: number;
+  page_size: number;
+};
+
+export function buildBoundedTrialSyncRequest(
+  input: TrialSyncCreateInput,
+): BoundedTrialSyncRequest {
+  const nctId = input.nctId.trim();
+  const queryTerm = input.queryTerm.trim();
+  const condition = input.condition.trim();
+  const selectors = [nctId, queryTerm, condition].filter(Boolean);
+  const hasStartPage = input.startPage.trim() !== '';
+  const hasEndPage = input.endPage.trim() !== '';
+  const pageSize = Number(input.pageSize);
+
+  if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 1_000)
+    throw new Error('Page size must be a whole number between 1 and 1000.');
+  if (selectors.length > 1)
+    throw new Error(
+      'Choose one source selection: NCT ID, condition, or search phrase.',
+    );
+  if (hasStartPage !== hasEndPage)
+    throw new Error('Enter both page-range values or leave both blank.');
+
+  const request: BoundedTrialSyncRequest = { page_size: pageSize };
+  if (nctId) request.nct_id = nctId;
+  if (queryTerm) request.query_term = queryTerm;
+  if (condition) request.condition = condition;
+
+  if (hasStartPage && hasEndPage) {
+    const startPage = Number(input.startPage);
+    const endPage = Number(input.endPage);
+    if (
+      !Number.isInteger(startPage) ||
+      !Number.isInteger(endPage) ||
+      startPage < 1 ||
+      endPage < startPage
+    )
+      throw new Error('Page range must use whole pages, starting at 1.');
+    if (nctId) throw new Error('A specific NCT ID cannot include a page range.');
+    request.start_page = startPage;
+    request.end_page = endPage;
+  } else if (selectors.length === 0) {
+    throw new Error('Choose a source selection or enter an explicit page range.');
+  }
+
+  return request;
+}
+
 export type MatchCandidate = {
   id: string;
   patient_id: string;
