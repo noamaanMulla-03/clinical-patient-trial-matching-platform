@@ -16,9 +16,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from app.db.models import Patient, PatientFactRecord, PatientImport, Trial, TrialVersion
 from app.fhir.schemas import FHIRImportRequest
+from app.routes.patients import get_synthetic_patient_timeline
 from app.services.source_snapshots import (
     persist_synthetic_patient_import,
-    retrieve_patient_timeline,
     store_trial_version,
 )
 
@@ -84,6 +84,10 @@ def test_synthetic_import_persists_a_patient_import_and_provenance_facts() -> No
         assert all(fact.created_at is not None for fact in facts)
         assert all(
             fact.source_resource["id"] == fact.provenance["resource_id"]
+            for fact in facts
+        )
+        assert all(
+            fact.source_resource["resourceType"] == fact.provenance["resource_type"]
             for fact in facts
         )
         assert all("date" in fact.normalization for fact in facts)
@@ -182,7 +186,9 @@ def test_patient_timeline_returns_one_source_linked_completed_import() -> None:
             session, FHIRImportRequest(bundle=bundle)
         )
 
-        timeline = await retrieve_patient_timeline(session, import_result.patient_id)
+        timeline = await get_synthetic_patient_timeline(
+            import_result.patient_id, session
+        )
 
         assert timeline is not None
         assert timeline.patient_id == import_result.patient_id
@@ -191,8 +197,11 @@ def test_patient_timeline_returns_one_source_linked_completed_import() -> None:
         assert timeline.import_snapshot.id == import_result.patient_import_id
         assert timeline.facts
         assert {fact.fact_id for fact in timeline.facts} == set(import_result.fact_ids)
+        assert all(fact.code.system and fact.code.value for fact in timeline.facts)
+        assert all(fact.normalization is not None for fact in timeline.facts)
         assert all(
             fact.source_resource["id"] == fact.source.resource_id
+            and fact.source_resource["resourceType"] == fact.source.resource_type
             for fact in timeline.facts
         )
 

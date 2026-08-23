@@ -383,6 +383,8 @@ def test_preserves_conflicting_and_unusable_observations_as_explicit_quality_dat
     observation_facts = [
         fact for fact in normalized_patient.facts if fact.kind == "observation"
     ]
+    # Missing demographics are import-quality issues, never inferred demographic facts.
+    assert not [fact for fact in normalized_patient.facts if fact.kind == "demographic"]
     assert [fact.value.numeric_value for fact in observation_facts] == [11.2, 12.4]
     assert all(
         {issue.code for issue in fact.quality_issues} == {"conflicting"}
