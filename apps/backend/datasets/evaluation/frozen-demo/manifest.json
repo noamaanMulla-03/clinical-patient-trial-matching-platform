@@ -1,0 +1,22 @@
+{
+  "configuration": {
+    "criterion_parser": "manual-v1",
+    "model_configuration": "not-used-v1",
+    "retrieval": "lexical-v1",
+    "rule_engine": "deterministic-v1",
+    "semantic_retrieval": "not-used-v1",
+    "terminology_mapping": "source-coded-v1"
+  },
+  "files": [
+    {
+      "path": "criteria.json",
+      "sha256": "b04141bdd9f695d8cc4718109fe2801803d300b68ccbecfd66de377b985987c7"
+    },
+    {
+      "path": "retrieval.json",
+      "sha256": "6a6ae82b791f2de245986fb679bd230ac9abe8e10d701063985a04e30ca595bd"
+    }
+  ],
+  "purpose": "Synthetic regression baseline only; not a clinical performance claim.",
+  "schema_version": "frozen-demo-v1"
+}

@@ -143,27 +143,27 @@ This roadmap translates the technical design into small, incremental delivery st
 
 ### Exit checks
 
-- [ ] A reviewer can understand why a trial is listed without reading internal logs.
-- [ ] A reviewer can navigate from a trial outcome to the exact source criterion and patient facts.
-- [ ] A correction creates an immutable audit record.
+- [x] A reviewer can understand why a trial is listed without reading internal logs.
+- [x] A reviewer can navigate from a trial outcome to the exact source criterion and patient facts.
+- [x] A correction creates an immutable audit record.
 
 ## Phase 7 — Baseline Evaluation and Acceptance Gates
 
-- [ ] Download and document TREC Clinical Trials 2021 and 2022 data usage.
-- [ ] Build a reproducible retrieval evaluation command.
-- [ ] Measure nDCG@5, nDCG@10, Precision@5, Precision@10, Recall@50, MRR, latency, and excluded-trial rate in top 10.
-- [ ] Establish a baseline with lexical retrieval only.
-- [ ] Build a small clinician-reviewed or carefully annotated deterministic-criteria test set.
-- [ ] Measure criterion macro F1, exclusion recall, false-clearance rate, evidence precision, and abstention rate.
-- [ ] Add end-to-end acceptance tests from the design.
-- [ ] Document known failure cases instead of masking them.
-- [ ] Freeze a demo dataset and deterministic configuration.
+- [x] Download and document TREC Clinical Trials 2021 and 2022 data usage.
+- [x] Build a reproducible retrieval evaluation command.
+- [x] Measure nDCG@5, nDCG@10, Precision@5, Precision@10, Recall@50, MRR, latency, and excluded-trial rate in top 10.
+- [x] Establish a baseline with lexical retrieval only.
+- [x] Build a small clinician-reviewed or carefully annotated deterministic-criteria test set.
+- [x] Measure criterion macro F1, exclusion recall, false-clearance rate, evidence precision, and abstention rate.
+- [x] Add end-to-end acceptance tests from the design.
+- [x] Document known failure cases instead of masking them.
+- [x] Freeze a demo dataset and deterministic configuration.
 
 ### Exit checks
 
-- [ ] The project has measured baseline behavior, not assumed accuracy.
-- [ ] Every demo claim is supported by a reproducible test or evaluation result.
-- [ ] The demo shows a potential match, likely exclusion, and needs-review result.
+- [x] The project has measured baseline behavior, not assumed accuracy.
+- [x] Every demo claim is supported by a reproducible test or evaluation result.
+- [x] The demo shows a potential match, likely exclusion, and needs-review result.
 
 ## Phase 8 — Semantic Retrieval and Criterion Parsing
 

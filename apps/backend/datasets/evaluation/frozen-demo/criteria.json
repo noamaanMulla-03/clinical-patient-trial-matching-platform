@@ -1,0 +1,190 @@
+{
+  "as_of": "2026-08-23",
+  "configuration": {
+    "criterion_parser": "manual-v1",
+    "rule_engine": "deterministic-v1",
+    "terminology_mapping": "source-coded-v1",
+    "model_configuration": "not-used-v1",
+    "patient_inputs": "synthetic fixture facts only"
+  },
+  "cases": [
+    {
+      "id": "inclusion-age-met",
+      "criterion": {
+        "category": "inclusion",
+        "source_text": "age 18+",
+        "source_start": 0,
+        "source_end": 7,
+        "rule": {"kind": "age", "operator": "at_least", "years": 18}
+      },
+      "facts": [
+        {
+          "fact_id": "birth-adult",
+          "patient_id": "synthetic-evaluation-patient",
+          "kind": "demographic",
+          "code": {"system": "http://hl7.org/fhir/StructureDefinition/Patient", "value": "birth-date"},
+          "value": "1980-08-23",
+          "source": {"resource_type": "Patient", "resource_id": "adult-patient"},
+          "source_resource": {"resourceType": "Patient", "id": "adult-patient"}
+        }
+      ],
+      "expected": {"outcome": "met", "evidence_fact_ids": ["birth-adult"]}
+    },
+    {
+      "id": "inclusion-age-not-met",
+      "criterion": {
+        "category": "inclusion",
+        "source_text": "age 18+",
+        "source_start": 0,
+        "source_end": 7,
+        "rule": {"kind": "age", "operator": "at_least", "years": 18}
+      },
+      "facts": [
+        {
+          "fact_id": "birth-child",
+          "patient_id": "synthetic-evaluation-patient",
+          "kind": "demographic",
+          "code": {"system": "http://hl7.org/fhir/StructureDefinition/Patient", "value": "birth-date"},
+          "value": "2015-08-23",
+          "source": {"resource_type": "Patient", "resource_id": "child-patient"},
+          "source_resource": {"resourceType": "Patient", "id": "child-patient"}
+        }
+      ],
+      "expected": {"outcome": "not_met", "evidence_fact_ids": ["birth-child"]}
+    },
+    {
+      "id": "inclusion-condition-missing",
+      "criterion": {
+        "category": "inclusion",
+        "source_text": "diabetes required",
+        "source_start": 0,
+        "source_end": 17,
+        "rule": {"kind": "coded_condition", "code": {"system": "http://snomed.info/sct", "value": "44054006"}}
+      },
+      "facts": [],
+      "expected": {"outcome": "unknown", "evidence_fact_ids": []}
+    },
+    {
+      "id": "inclusion-condition-stale",
+      "criterion": {
+        "category": "inclusion",
+        "source_text": "diabetes required",
+        "source_start": 0,
+        "source_end": 17,
+        "rule": {"kind": "coded_condition", "code": {"system": "http://snomed.info/sct", "value": "44054006"}}
+      },
+      "facts": [
+        {
+          "fact_id": "condition-stale",
+          "patient_id": "synthetic-evaluation-patient",
+          "kind": "condition",
+          "code": {"system": "http://snomed.info/sct", "value": "44054006", "display": "Diabetes mellitus"},
+          "value": {"clinical_status": "active", "onset_date": "2020-01-01"},
+          "source": {"resource_type": "Condition", "resource_id": "condition-stale"},
+          "source_resource": {"resourceType": "Condition", "id": "condition-stale"},
+          "quality_issues": [{"code": "stale", "field": "onsetDateTime", "message": "Source date is stale."}]
+        }
+      ],
+      "expected": {"outcome": "unknown", "evidence_fact_ids": ["condition-stale"]}
+    },
+    {
+      "id": "inclusion-lab-conflicting",
+      "criterion": {
+        "category": "inclusion",
+        "source_text": "glucose >= 8",
+        "source_start": 0,
+        "source_end": 12,
+        "rule": {"kind": "numeric_lab_threshold", "code": {"system": "http://loinc.org", "value": "2345-7"}, "comparator": ">=", "threshold": 8.0, "unit": "mmol/L"}
+      },
+      "facts": [
+        {
+          "fact_id": "glucose-high",
+          "patient_id": "synthetic-evaluation-patient",
+          "kind": "observation",
+          "code": {"system": "http://loinc.org", "value": "2345-7"},
+          "value": {"numeric_value": 9.0, "status": "final"},
+          "unit": "mmol/L",
+          "source": {"resource_type": "Observation", "resource_id": "glucose-high"},
+          "source_resource": {"resourceType": "Observation", "id": "glucose-high"}
+        },
+        {
+          "fact_id": "glucose-low",
+          "patient_id": "synthetic-evaluation-patient",
+          "kind": "observation",
+          "code": {"system": "http://loinc.org", "value": "2345-7"},
+          "value": {"numeric_value": 7.0, "status": "final"},
+          "unit": "mmol/L",
+          "source": {"resource_type": "Observation", "resource_id": "glucose-low"},
+          "source_resource": {"resourceType": "Observation", "id": "glucose-low"}
+        }
+      ],
+      "expected": {"outcome": "conflicting", "evidence_fact_ids": ["glucose-high", "glucose-low"]}
+    },
+    {
+      "id": "exclusion-recorded-sex",
+      "criterion": {
+        "category": "exclusion",
+        "source_text": "female excluded",
+        "source_start": 0,
+        "source_end": 15,
+        "rule": {"kind": "recorded_sex", "value": "female"}
+      },
+      "facts": [
+        {
+          "fact_id": "recorded-female",
+          "patient_id": "synthetic-evaluation-patient",
+          "kind": "demographic",
+          "code": {"system": "http://hl7.org/fhir/StructureDefinition/Patient", "value": "administrative-gender"},
+          "value": "female",
+          "source": {"resource_type": "Patient", "resource_id": "sex-patient"},
+          "source_resource": {"resourceType": "Patient", "id": "sex-patient"}
+        }
+      ],
+      "expected": {"outcome": "not_met", "evidence_fact_ids": ["recorded-female"]}
+    },
+    {
+      "id": "exclusion-condition-not-triggered",
+      "criterion": {
+        "category": "exclusion",
+        "source_text": "diabetes excluded",
+        "source_start": 0,
+        "source_end": 17,
+        "rule": {"kind": "coded_condition", "code": {"system": "http://snomed.info/sct", "value": "44054006"}}
+      },
+      "facts": [
+        {
+          "fact_id": "condition-asthma",
+          "patient_id": "synthetic-evaluation-patient",
+          "kind": "condition",
+          "code": {"system": "http://snomed.info/sct", "value": "195967001", "display": "Asthma"},
+          "value": {"clinical_status": "active"},
+          "source": {"resource_type": "Condition", "resource_id": "condition-asthma"},
+          "source_resource": {"resourceType": "Condition", "id": "condition-asthma"}
+        }
+      ],
+      "expected": {"outcome": "unknown", "evidence_fact_ids": []}
+    },
+    {
+      "id": "inclusion-medication-status",
+      "criterion": {
+        "category": "inclusion",
+        "source_text": "metformin active",
+        "source_start": 0,
+        "source_end": 16,
+        "rule": {"kind": "medication_status", "code": {"system": "http://www.nlm.nih.gov/research/umls/rxnorm", "value": "860975"}, "expected_status": "active"}
+      },
+      "facts": [
+        {
+          "fact_id": "metformin-active",
+          "patient_id": "synthetic-evaluation-patient",
+          "kind": "medication",
+          "code": {"system": "http://www.nlm.nih.gov/research/umls/rxnorm", "value": "860975", "display": "Metformin"},
+          "value": {"status": "active"},
+          "source": {"resource_type": "MedicationStatement", "resource_id": "metformin-active"},
+          "source_resource": {"resourceType": "MedicationStatement", "id": "metformin-active"}
+        }
+      ],
+      "expected": {"outcome": "met", "evidence_fact_ids": ["metformin-active"]}
+    }
+  ]
+}

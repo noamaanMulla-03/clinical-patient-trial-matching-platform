@@ -42,7 +42,10 @@ The current in-memory sink exists for local development and tests. A database-ba
 
 ## Current status
 
-The backend implements Phases 0–5 of the roadmap: synthetic-data safety boundaries, FHIR normalization, trial versioning, deterministic criterion evaluation, and bounded lexical match runs.
+The backend implements Phases 0–7 of the roadmap: synthetic-data safety
+boundaries, FHIR normalization, trial versioning, deterministic criterion
+evaluation, bounded lexical match runs, reviewer workflow, and reproducible
+baseline evaluation.
 
 It currently supports:
 
@@ -53,9 +56,10 @@ It currently supports:
 - PostgreSQL full-text trial retrieval, conservative metadata filtering, deterministic candidate scoring, and ranked match results.
 - Durable match-run cancellation requests, safe failure status, and immutable run/version traceability.
 
-The reviewer web interface and durable worker dispatcher are implemented. Semantic
-retrieval and formal evaluation tooling remain roadmap items. Docker Compose starts
-PostgreSQL, Redis, the migration job, API, worker, and web application.
+The reviewer web interface, durable worker dispatcher, and formal deterministic
+baseline evaluation are implemented. Semantic retrieval remains a roadmap item.
+Docker Compose starts PostgreSQL, Redis, the migration job, API, worker, and web
+application.
 
 ## Repository layout
 
@@ -132,6 +136,24 @@ Run backend checks from `apps/backend`:
 .venv/bin/python -m mypy
 TEST_DATABASE_URL=postgresql+asyncpg://app:app@localhost:5432/trial_matcher .venv/bin/python -m pytest
 ```
+
+## Baseline evaluation
+
+The reproducible baseline uses only the committed synthetic evaluation fixtures
+and the same lexical scorer and deterministic criterion evaluator used by the
+application. It is a regression measure, not a clinical-performance claim.
+
+From `apps/backend`:
+
+```bash
+uv run python -m app.evaluation verify-frozen
+uv run python -m app.evaluation retrieval
+uv run python -m app.evaluation criteria
+```
+
+See [the frozen baseline report](apps/backend/datasets/evaluation/frozen-demo/BASELINE_RESULTS.md),
+[TREC data usage](apps/backend/datasets/evaluation/TREC_DATA_USAGE.md), and
+[known failure cases](apps/backend/datasets/evaluation/KNOWN_FAILURE_CASES.md).
 
 ## Frontend
 

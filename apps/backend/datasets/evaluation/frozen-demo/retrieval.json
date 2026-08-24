@@ -1,0 +1,101 @@
+{
+  "configuration": {
+    "retrieval": "lexical-v1",
+    "semantic_retrieval": "not-used-v1",
+    "reranking": "not-used-v1",
+    "patient_inputs": "synthetic fixture terms only"
+  },
+  "trials": [
+    {
+      "nct_id": "NCT90000001",
+      "title": "Metformin treatment study",
+      "conditions": ["Diabetes mellitus"],
+      "interventions": [{"name": "Metformin", "type": "DRUG"}],
+      "eligibility_text": "Adults with diabetes mellitus."
+    },
+    {
+      "nct_id": "NCT90000002",
+      "title": "Diabetes and metformin outcomes study",
+      "conditions": ["Type 2 diabetes"],
+      "interventions": [{"name": "Metformin", "type": "DRUG"}],
+      "eligibility_text": "Adults with diabetes."
+    },
+    {
+      "nct_id": "NCT90000003",
+      "title": "Diabetes study with a documented exclusion",
+      "conditions": ["Diabetes mellitus"],
+      "interventions": [],
+      "eligibility_text": "Diabetes is required; a separate exclusion applies."
+    },
+    {
+      "nct_id": "NCT90000004",
+      "title": "Asthma control study",
+      "conditions": ["Asthma"],
+      "interventions": [],
+      "eligibility_text": "Asthma control."
+    },
+    {
+      "nct_id": "NCT90000005",
+      "title": "Health records archive",
+      "conditions": ["General health"],
+      "interventions": [],
+      "eligibility_text": "The word diabetes is mentioned for background only."
+    },
+    {
+      "nct_id": "NCT90000006",
+      "title": "Melanoma pathway study",
+      "conditions": ["Melanoma"],
+      "interventions": [],
+      "eligibility_text": "Melanoma cohort."
+    },
+    {
+      "nct_id": "NCT90000007",
+      "title": "Melanoma study with an exclusion criterion",
+      "conditions": ["Melanoma"],
+      "interventions": [],
+      "eligibility_text": "An exclusion applies to this melanoma study."
+    },
+    {
+      "nct_id": "NCT90000008",
+      "title": "Melanoma education registry",
+      "conditions": ["General health"],
+      "interventions": [],
+      "eligibility_text": "Educational material mentioning melanoma."
+    },
+    {
+      "nct_id": "NCT90000009",
+      "title": "Lung cancer study",
+      "conditions": ["Lung cancer"],
+      "interventions": [],
+      "eligibility_text": "Lung cancer cohort."
+    }
+  ],
+  "topics": [
+    {
+      "id": "synthetic-diabetes",
+      "terms": [
+        {"text": "Diabetes", "source_fact_id": "demo-condition-diabetes", "kind": "condition"},
+        {"text": "Metformin", "source_fact_id": "demo-medication-metformin", "kind": "medication"}
+      ],
+      "judgments": {
+        "NCT90000001": 2,
+        "NCT90000002": 2,
+        "NCT90000003": 1,
+        "NCT90000004": 0,
+        "NCT90000005": 0
+      }
+    },
+    {
+      "id": "synthetic-melanoma",
+      "terms": [
+        {"text": "Melanoma", "source_fact_id": "demo-condition-melanoma", "kind": "condition"}
+      ],
+      "judgments": {
+        "NCT90000006": 2,
+        "NCT90000007": 1,
+        "NCT90000008": 0,
+        "NCT90000009": 2
+      }
+    }
+  ]
+}

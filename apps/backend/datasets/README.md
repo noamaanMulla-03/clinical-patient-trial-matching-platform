@@ -24,3 +24,13 @@ Every imported FHIR R4 `Bundle` must include this exact tag in its **top-level**
 The importer checks the `system` and `code` exactly. A display label alone is not enough, and a tag on a Patient or another entry does not count. The guard must run before the Bundle is persisted, normalized, logged, or added to a background job.
 
 Do not commit real patient data, redacted patient records, or information that can be re-identified.
+
+## Evaluation fixtures
+
+`evaluation/frozen-demo/` contains only synthetic trial summaries, synthetic
+patient-fact terms, and carefully annotated deterministic-rule cases. It is
+versioned with checksums and used for reproducible regression measurement; it
+is not a clinical-validation dataset.
+
+TREC Clinical Trials source downloads are kept separately in a gitignored
+directory. Read `evaluation/TREC_DATA_USAGE.md` before acquiring or using them.
