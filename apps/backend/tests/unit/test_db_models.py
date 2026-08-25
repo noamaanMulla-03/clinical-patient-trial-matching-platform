@@ -15,6 +15,8 @@ def test_models_register_the_required_tables() -> None:
         "patients",
         "review_decisions",
         "trial_matches",
+        "trial_embedding_jobs",
+        "trial_embeddings",
         "trial_syncs",
         "trial_versions",
         "trials",
@@ -105,6 +107,8 @@ def test_matching_tables_preserve_the_full_evidence_chain() -> None:
         "criterion_results": {"criteria.id", "trial_matches.id"},
         "match_run_cancellations": {"match_runs.id"},
         "review_decisions": {"criterion_results.id"},
+        "trial_embeddings": {"trial_versions.id"},
+        "trial_embedding_jobs": {"trial_versions.id"},
     }
 
     for table_name, expected_targets in relationships.items():
@@ -144,3 +148,28 @@ def test_match_runs_require_queryable_configuration_versions() -> None:
 
     assert version_fields <= {column.name for column in match_runs.columns}
     assert all(not match_runs.c[field].nullable for field in version_fields)
+
+
+def test_trial_embeddings_are_immutable_and_versioned_with_the_model() -> None:
+    embeddings = Base.metadata.tables["trial_embeddings"]
+    jobs = Base.metadata.tables["trial_embedding_jobs"]
+
+    assert {
+        "trial_version_id",
+        "model_configuration_version",
+        "content_hash",
+        "embedding",
+    } <= {column.name for column in embeddings.columns}
+    embedding_index = next(
+        index
+        for index in embeddings.indexes
+        if index.name == "uq_trial_embeddings_version_model"
+    )
+    assert embedding_index.unique
+    assert [column.name for column in embedding_index.columns] == [
+        "trial_version_id",
+        "model_configuration_version",
+    ]
+    assert {"trial_version_id", "model_configuration_version", "status"} <= {
+        column.name for column in jobs.columns
+    }

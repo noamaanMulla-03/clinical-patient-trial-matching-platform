@@ -8,10 +8,12 @@ import os
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import MatchRun, TrialSync
+from app.db.models import MatchRun, TrialEmbeddingJob, TrialSync
 from app.db.session import session_factory_for
+from app.services.trial_embeddings import queue_next_missing_trial_embedding_job
 from app.settings import validate_startup_settings
 from app.workers.match_runs import run_match_run_job
+from app.workers.trial_embeddings import run_queued_trial_embedding_job
 from app.workers.trial_ingestion import run_queued_trial_ingestion_job
 
 DEFAULT_POLL_SECONDS = 1.0
@@ -50,7 +52,19 @@ async def process_next_job(session: AsyncSession) -> bool:
         .limit(1)
     )
     if match_run_id is None:
-        return False
+        embedding_job_id = await session.scalar(
+            select(TrialEmbeddingJob.id)
+            .where(TrialEmbeddingJob.status == "queued")
+            .order_by(TrialEmbeddingJob.created_at, TrialEmbeddingJob.id)
+            .limit(1)
+        )
+        if embedding_job_id is None:
+            backfill_job = await queue_next_missing_trial_embedding_job(session)
+            if backfill_job is None:
+                return False
+            embedding_job_id = backfill_job.id
+        await run_queued_trial_embedding_job(session, embedding_job_id)
+        return True
     await run_match_run_job(session, match_run_id)
     return True
 

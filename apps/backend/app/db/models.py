@@ -7,6 +7,7 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID, uuid4
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
@@ -250,6 +251,75 @@ class TrialVersion(Base):
     ingested_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+class TrialEmbedding(Base):
+    """One immutable semantic vector for one immutable public trial snapshot."""
+
+    __tablename__ = "trial_embeddings"
+    __table_args__ = (
+        Index(
+            "uq_trial_embeddings_version_model",
+            "trial_version_id",
+            "model_configuration_version",
+            unique=True,
+        ),
+        Index("ix_trial_embeddings_model_configuration", "model_configuration_version"),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4
+    )
+    trial_version_id: Mapped[UUID] = mapped_column(
+        ForeignKey("trial_versions.id", ondelete="RESTRICT"), nullable=False
+    )
+    model_configuration_version: Mapped[str] = mapped_column(
+        String(128), nullable=False
+    )
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    embedding: Mapped[list[float]] = mapped_column(Vector(768), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class TrialEmbeddingJob(Base):
+    """Durable generation state for one versioned public-trial embedding."""
+
+    __tablename__ = "trial_embedding_jobs"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('queued', 'running', 'completed', 'failed')",
+            name="ck_trial_embedding_jobs_status",
+        ),
+        Index(
+            "uq_trial_embedding_jobs_version_model",
+            "trial_version_id",
+            "model_configuration_version",
+            unique=True,
+        ),
+        Index("ix_trial_embedding_jobs_status_created_at", "status", "created_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4
+    )
+    trial_version_id: Mapped[UUID] = mapped_column(
+        ForeignKey("trial_versions.id", ondelete="RESTRICT"), nullable=False
+    )
+    model_configuration_version: Mapped[str] = mapped_column(
+        String(128), nullable=False
+    )
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, server_default="queued"
+    )
+    failure_code: Mapped[str | None] = mapped_column(String(64))
+    failure_message: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Criterion(Base):

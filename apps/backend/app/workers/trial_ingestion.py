@@ -291,7 +291,11 @@ async def create_queued_trial_sync(
     The route and worker deliberately share this serializer so the durable job
     record always represents the exact normalized selection that was approved.
     """
-    sync = TrialSync(request_parameters=_request_parameters(request))
+    # Database ``now()`` is transaction-stable; capture wall-clock queue time so
+    # status views can order several selections created in one request reliably.
+    sync = TrialSync(
+        request_parameters=_request_parameters(request), created_at=datetime.now(UTC)
+    )
     session.add(sync)
     await session.flush()
     return sync

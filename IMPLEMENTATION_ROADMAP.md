@@ -167,8 +167,8 @@ This roadmap translates the technical design into small, incremental delivery st
 
 ## Phase 8 — Semantic Retrieval and Criterion Parsing
 
-- [ ] Choose and version an embedding model.
-- [ ] Add pgvector storage and embedding-generation jobs.
+- [x] Choose and version an embedding model.
+- [x] Add pgvector storage and embedding-generation jobs.
 - [ ] Implement semantic retrieval alongside lexical retrieval.
 - [ ] Fuse rankings using reciprocal rank fusion.
 - [ ] Compare lexical-only versus hybrid retrieval on held-out TREC topics.

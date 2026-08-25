@@ -1,1 +1,1 @@
-"""Conservative lexical retrieval primitives for trial candidate generation."""
+"""Conservative lexical retrieval and pinned future semantic-model primitives."""

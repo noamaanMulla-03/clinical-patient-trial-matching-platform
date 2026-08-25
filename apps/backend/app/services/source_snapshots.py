@@ -32,6 +32,7 @@ from app.fhir.schemas import (
     PatientImportSnapshotResponse,
     PatientTimelineResponse,
 )
+from app.services.trial_embeddings import queue_trial_embedding_job
 from app.trials.extraction import ExtractedTrialFields, extract_trial_fields
 
 _NCT_ID_PATTERN = re.compile(r"NCT\d{8}")
@@ -340,6 +341,7 @@ async def store_trial_version(
     for previous_version in previous_current_versions:
         previous_version.superseded_by_version_id = trial_version.id
         previous_version.superseded_at = retrieved_at
+    await queue_trial_embedding_job(session, trial_version_id=trial_version.id)
     await session.flush()
     return trial_version
 
