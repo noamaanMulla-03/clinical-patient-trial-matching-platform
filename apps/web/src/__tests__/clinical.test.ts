@@ -7,6 +7,7 @@ import {
   factFreshness,
   filterMatchCandidates,
   Fact,
+  fusedRetrievalReason,
   MatchCandidate,
   retrievalReason,
   semanticRetrievalReason,
@@ -73,6 +74,20 @@ describe('clinical display helpers', () => {
     expect(apiPath('/patients/a/facts/fact-1/source')).toBe(
       '/api/patients/a/facts/fact-1/source',
     );
+  });
+
+  it('explains combined ranking without describing it as an outcome', () => {
+    expect(
+      fusedRetrievalReason(
+        {
+          method: 'reciprocal-rank-fusion-v1',
+          score: 0.03,
+          rank: 1,
+          rank_constant: 60,
+        },
+        ['lexical', 'semantic'],
+      ),
+    ).toContain('both contributed');
   });
 
   it('filters each outcome tab independently from status and title search', () => {

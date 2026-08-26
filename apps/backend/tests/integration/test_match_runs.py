@@ -114,6 +114,10 @@ def test_worker_persists_ranked_trial_versions_for_one_immutable_patient_import(
         assert (
             run.configuration_snapshot["versions"]["rule_engine"] == "deterministic-v1"
         )
+        assert run.configuration_snapshot["rank_fusion"] == {
+            "method": "reciprocal-rank-fusion-v1",
+            "rank_constant": 60,
+        }
         assert run.rule_engine_version == "deterministic-v1"
 
         assert completed_run.status == "completed"
@@ -127,10 +131,7 @@ def test_worker_persists_ranked_trial_versions_for_one_immutable_patient_import(
         results = await match_run_results(session, completed_run)
         assert response.candidate_limit == MAX_MATCH_RUN_CANDIDATES
         assert response.candidate_count == 1
-        assert (
-            response.configuration_versions["retrieval"]
-            == "lexical-semantic-fallback-v1"
-        )
+        assert response.configuration_versions["retrieval"] == "lexical-semantic-rrf-v1"
         assert results[0].nct_id == nct_id
         assert results[0].title == "Diabetes and metformin study"
         assert results[0].study_status == "RECRUITING"
@@ -216,6 +217,10 @@ def test_worker_uses_semantic_only_candidate_when_lexical_has_no_match(
             "candidate_sources": ["semantic"],
             "semantic_score": 0.74,
             "semantic_rank": 1,
+            "reciprocal_rank_fusion_score": 1 / 61,
+            "reciprocal_rank_fusion_rank": 1,
+            "reciprocal_rank_fusion_rank_constant": 60,
+            "reciprocal_rank_fusion_version": "reciprocal-rank-fusion-v1",
         }
         results = await match_run_results(session, completed)
         assert results[0].retrieval_sources == ["semantic"]

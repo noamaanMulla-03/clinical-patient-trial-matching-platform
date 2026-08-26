@@ -1,4 +1,4 @@
-"""Create and safely read durable lexical match-run records."""
+"""Create and safely read durable hybrid retrieval match-run records."""
 
 from __future__ import annotations
 
@@ -23,11 +23,15 @@ from src.matching.schemas import (
     MatchRunResponse,
     TrialMatchResponse,
 )
+from src.retrieval.fusion import (
+    RECIPROCAL_RANK_FUSION_RANK_CONSTANT,
+    RECIPROCAL_RANK_FUSION_VERSION,
+)
 from src.retrieval.semantic_config import SEMANTIC_EMBEDDING_MODEL
 from src.trials.extraction import TrialExtractionError, extract_trial_fields
 
 MAX_MATCH_RUN_CANDIDATES = 100
-HYBRID_RETRIEVAL_VERSION = "lexical-semantic-fallback-v1"
+HYBRID_RETRIEVAL_VERSION = "lexical-semantic-rrf-v1"
 _MATCH_RUN_VERSIONS = {
     "parser": "manual-v1",
     "retrieval": HYBRID_RETRIEVAL_VERSION,
@@ -221,7 +225,11 @@ def _configuration_snapshot(patient_import_id: UUID) -> dict[str, object]:
         "candidate_generation": HYBRID_RETRIEVAL_VERSION,
         "metadata_filtering": "conservative-v1",
         "scoring": "field-weighted-lexical-v1",
-        "semantic_candidate_policy": "lexical-rank-semantic-fallback-v1",
+        "semantic_candidate_policy": "metadata-filtered-v1",
+        "rank_fusion": {
+            "method": RECIPROCAL_RANK_FUSION_VERSION,
+            "rank_constant": RECIPROCAL_RANK_FUSION_RANK_CONSTANT,
+        },
         "embedding_model": SEMANTIC_EMBEDDING_MODEL.snapshot(),
         "versions": _MATCH_RUN_VERSIONS,
     }

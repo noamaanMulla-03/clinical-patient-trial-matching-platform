@@ -6,6 +6,7 @@ import {
   displayFactValue,
   factFreshness,
   Fact,
+  fusedRetrievalReason,
   filterMatchCandidates,
   ImportResult,
   CriterionDetail,
@@ -956,7 +957,10 @@ function MatchRunScreen({
         <div>
           <p className="eyebrow">Step 3</p>
           <h2 id="match-title">Match-run status</h2>
-          <p>Queue lexical candidate retrieval, then monitor durable worker status.</p>
+          <p>
+            Queue combined lexical and semantic candidate retrieval, then monitor
+            durable worker status.
+          </p>
         </div>
         <form className="lookup" onSubmit={create}>
           <label htmlFor="import-id">Completed patient import ID</label>
@@ -1205,19 +1209,26 @@ function CandidateList({
                     <div>
                       <dt>Retrieval relevance</dt>
                       <dd>
-                        {candidate.retrieval_relevance
-                          ? `${candidate.retrieval_relevance.score.toFixed(1)} score · ${candidate.retrieval_relevance.matched_term_count}/${candidate.retrieval_relevance.query_term_count} terms`
-                          : candidate.semantic_relevance
-                            ? `Semantic similarity ${candidate.semantic_relevance.score.toFixed(2)} · rank ${candidate.semantic_relevance.rank}`
-                            : 'Not available'}
+                        {candidate.fused_relevance
+                          ? `Combined rank ${candidate.fused_relevance.rank} · reciprocal rank fusion`
+                          : candidate.retrieval_relevance
+                            ? `${candidate.retrieval_relevance.score.toFixed(1)} score · ${candidate.retrieval_relevance.matched_term_count}/${candidate.retrieval_relevance.query_term_count} terms`
+                            : candidate.semantic_relevance
+                              ? `Semantic similarity ${candidate.semantic_relevance.score.toFixed(2)} · rank ${candidate.semantic_relevance.rank}`
+                              : 'Not available'}
                       </dd>
                     </div>
                     <div className="why-listed">
                       <dt>Why listed</dt>
                       <dd>
-                        {candidate.retrieval_relevance
-                          ? retrievalReason(candidate.retrieval_relevance)
-                          : semanticRetrievalReason(candidate.semantic_relevance)}
+                        {candidate.fused_relevance
+                          ? fusedRetrievalReason(
+                              candidate.fused_relevance,
+                              candidate.retrieval_sources,
+                            )
+                          : candidate.retrieval_relevance
+                            ? retrievalReason(candidate.retrieval_relevance)
+                            : semanticRetrievalReason(candidate.semantic_relevance)}
                       </dd>
                     </div>
                   </dl>

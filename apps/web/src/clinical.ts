@@ -195,6 +195,12 @@ export type MatchCandidate = {
     score: number;
     rank: number;
   } | null;
+  fused_relevance?: {
+    method: 'reciprocal-rank-fusion-v1';
+    score: number;
+    rank: number;
+    rank_constant: number;
+  } | null;
   criterion_results: {
     id: string;
     category: 'inclusion' | 'exclusion';
@@ -297,6 +303,18 @@ export function semanticRetrievalReason(
 ): string {
   if (!relevance) return 'Semantic retrieval details are not available.';
   return 'Listed from similarity between the synthetic patient context and public trial text; review the source trial criteria before relying on it.';
+}
+
+export function fusedRetrievalReason(
+  relevance: MatchCandidate['fused_relevance'],
+  sources: MatchCandidate['retrieval_sources'],
+): string {
+  if (!relevance) return 'Combined retrieval details are not available.';
+  if (sources.includes('lexical') && sources.includes('semantic'))
+    return 'Lexical matching and semantic similarity both contributed to this combined retrieval rank; review the trial criteria and source facts.';
+  if (sources.includes('lexical'))
+    return 'This combined retrieval rank was based on documented lexical matching; review the linked source facts.';
+  return 'This combined retrieval rank was based on semantic similarity to public trial text; review the trial criteria before relying on it.';
 }
 
 export type ResultTab =

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
 from uuid import UUID
 
 from pydantic import ValidationError
@@ -14,13 +13,13 @@ from src.db.models import (
     MatchRun,
     MatchRunCancellation,
     PatientFactRecord,
-    Trial,
     TrialMatch,
     TrialVersion,
 )
 from src.fhir.schemas import PatientFact
 from src.retrieval.embedding_encoder import EmbeddingEncoderError
 from src.retrieval.filtering import metadata_from_trial, trial_matches_metadata
+from src.retrieval.fusion import fuse_ranked_trial_candidates
 from src.retrieval.lexical import lexical_trial_candidates_statement
 from src.retrieval.query_builder import build_patient_retrieval_query
 from src.retrieval.schemas import PatientDerivedRetrievalQuery
@@ -97,15 +96,19 @@ async def _persist_ranked_candidates(session: AsyncSession, run: MatchRun) -> No
         if trial_matches_metadata(metadata_from_trial(trial), query.filters)
         and (score := score_trial_candidate(trial, query)) is not None
     ]
-    ranked_trials = rank_scored_trials(scored_trials)
+    ranked_lexical_trials = rank_scored_trials(scored_trials)
     await _raise_if_cancelled(session, run)
     semantic_candidates = await _semantic_candidates_or_empty(
         session, query, candidate_limit=candidate_limit
     )
-    ranked_trials = _add_semantic_candidates(
-        ranked_trials,
-        semantic_candidates,
-        query=query,
+    filtered_semantic_candidates = tuple(
+        candidate
+        for candidate in semantic_candidates
+        if trial_matches_metadata(metadata_from_trial(candidate.trial), query.filters)
+    )
+    ranked_trials = fuse_ranked_trial_candidates(
+        ranked_lexical_trials,
+        filtered_semantic_candidates,
         candidate_limit=candidate_limit,
     )
     await _raise_if_cancelled(session, run)
@@ -152,60 +155,6 @@ async def _semantic_candidates_or_empty(
     except EmbeddingEncoderError:
         # The public-trial vectors remain intact; a later run can retry locally.
         return ()
-
-
-def _add_semantic_candidates(
-    ranked_lexical_trials: list[tuple[Trial, dict[str, Any]]],
-    semantic_candidates: tuple[SemanticTrialCandidate, ...],
-    *,
-    query: PatientDerivedRetrievalQuery,
-    candidate_limit: int,
-) -> list[tuple[Trial, dict[str, Any]]]:
-    """Preserve lexical rank, then use semantic-only candidates to fill the cap.
-
-    Rank fusion is intentionally deferred to the next Phase 8 step. This stage
-    makes semantic retrieval available without silently changing the established
-    lexical ordering or exceeding its frozen candidate cap.
-    """
-    lexical_by_nct = {
-        trial.nct_id: (trial, score) for trial, score in ranked_lexical_trials
-    }
-    semantic_by_nct = {
-        candidate.trial.nct_id: candidate for candidate in semantic_candidates
-    }
-    enriched_lexical: list[tuple[Trial, dict[str, Any]]] = []
-    for trial, score in ranked_lexical_trials:
-        enriched_score = dict(score)
-        enriched_score["candidate_sources"] = ["lexical"]
-        if semantic_candidate := semantic_by_nct.get(trial.nct_id):
-            enriched_score.update(
-                {
-                    "candidate_sources": ["lexical", "semantic"],
-                    "semantic_score": semantic_candidate.score,
-                    "semantic_rank": semantic_candidate.rank,
-                }
-            )
-        enriched_lexical.append((trial, enriched_score))
-
-    semantic_only: list[tuple[Trial, dict[str, Any]]] = []
-    for candidate in semantic_candidates:
-        if candidate.trial.nct_id in lexical_by_nct:
-            continue
-        if not trial_matches_metadata(
-            metadata_from_trial(candidate.trial), query.filters
-        ):
-            continue
-        semantic_only.append(
-            (
-                candidate.trial,
-                {
-                    "candidate_sources": ["semantic"],
-                    "semantic_score": candidate.score,
-                    "semantic_rank": candidate.rank,
-                },
-            )
-        )
-    return (enriched_lexical + semantic_only)[:candidate_limit]
 
 
 def _patient_fact_from_record(record: PatientFactRecord) -> PatientFact:

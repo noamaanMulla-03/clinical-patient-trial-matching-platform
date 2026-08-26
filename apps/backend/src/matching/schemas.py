@@ -104,6 +104,7 @@ class TrialMatchResponse(BaseModel):
     )
     retrieval_relevance: RetrievalRelevanceResponse | None = None
     semantic_relevance: SemanticRetrievalRelevanceResponse | None = None
+    fused_relevance: ReciprocalRankFusionRelevanceResponse | None = None
     criterion_results: list[CriterionResultSummary] = Field(default_factory=list)
     outcome: (
         Literal["potential_match", "likely_excluded", "needs_review", "not_relevant"]
@@ -139,6 +140,9 @@ class TrialMatchResponse(BaseModel):
                 match.retrieval_scores
             ),
             semantic_relevance=SemanticRetrievalRelevanceResponse.from_scores(
+                match.retrieval_scores
+            ),
+            fused_relevance=ReciprocalRankFusionRelevanceResponse.from_scores(
                 match.retrieval_scores
             ),
             criterion_results=criterion_results or [],
@@ -213,6 +217,41 @@ class SemanticRetrievalRelevanceResponse(BaseModel):
         ):
             return None
         return cls(score=float(score), rank=rank)
+
+
+class ReciprocalRankFusionRelevanceResponse(BaseModel):
+    """Explain the combined retrieval position without implying an outcome."""
+
+    method: Literal["reciprocal-rank-fusion-v1"]
+    score: float = Field(gt=0)
+    rank: int = Field(gt=0)
+    rank_constant: int = Field(gt=0)
+
+    @classmethod
+    def from_scores(
+        cls, scores: dict[str, Any]
+    ) -> ReciprocalRankFusionRelevanceResponse | None:
+        score = scores.get("reciprocal_rank_fusion_score")
+        rank = scores.get("reciprocal_rank_fusion_rank")
+        rank_constant = scores.get("reciprocal_rank_fusion_rank_constant")
+        method = scores.get("reciprocal_rank_fusion_version")
+        if (
+            not isinstance(score, (int, float))
+            or isinstance(score, bool)
+            or score <= 0
+            or type(rank) is not int
+            or rank < 1
+            or type(rank_constant) is not int
+            or rank_constant < 1
+            or method != "reciprocal-rank-fusion-v1"
+        ):
+            return None
+        return cls(
+            method=method,
+            score=float(score),
+            rank=rank,
+            rank_constant=rank_constant,
+        )
 
 
 class CriterionResultSummary(BaseModel):

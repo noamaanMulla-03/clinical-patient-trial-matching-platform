@@ -21,6 +21,10 @@ def test_result_response_separates_retrieval_relevance_from_review_outcome() -> 
             "candidate_sources": ["lexical", "semantic"],
             "semantic_score": 0.75,
             "semantic_rank": 2,
+            "reciprocal_rank_fusion_score": 0.0325,
+            "reciprocal_rank_fusion_rank": 1,
+            "reciprocal_rank_fusion_rank_constant": 60,
+            "reciprocal_rank_fusion_version": "reciprocal-rank-fusion-v1",
         },
         outcome="needs_review",
         created_at=datetime(2026, 8, 23, tzinfo=UTC),
@@ -50,6 +54,13 @@ def test_result_response_separates_retrieval_relevance_from_review_outcome() -> 
     assert response.source_updated_at == datetime(2026, 8, 22, tzinfo=UTC)
     assert response.semantic_relevance is not None
     assert response.semantic_relevance.model_dump() == {"score": 0.75, "rank": 2}
+    assert response.fused_relevance is not None
+    assert response.fused_relevance.model_dump() == {
+        "method": "reciprocal-rank-fusion-v1",
+        "score": 0.0325,
+        "rank": 1,
+        "rank_constant": 60,
+    }
 
 
 def test_result_response_keeps_invalid_retrieval_relevance_unavailable() -> None:
