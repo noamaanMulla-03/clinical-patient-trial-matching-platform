@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from app.audit import InMemoryAuditSink, audited_write, create_audit_event
+from src.audit import InMemoryAuditSink, audited_write, create_audit_event
 
 
 def test_audited_write_records_success_after_the_write_completes() -> None:

@@ -3,8 +3,8 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from app.fhir.importer import normalize_patient_resource
-from app.fhir.schemas import (
+from src.fhir.importer import normalize_patient_resource
+from src.fhir.schemas import (
     AllergyFactValue,
     ConditionFactValue,
     MedicationFactValue,

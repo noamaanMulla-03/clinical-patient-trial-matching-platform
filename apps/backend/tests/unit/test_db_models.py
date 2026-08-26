@@ -1,7 +1,7 @@
 """Unit tests for the initial source-linked database schema."""
 
-import app.db.models  # noqa: F401
-from app.db.base import Base
+import src.db.models  # noqa: F401
+from src.db.base import Base
 
 
 def test_models_register_the_required_tables() -> None:

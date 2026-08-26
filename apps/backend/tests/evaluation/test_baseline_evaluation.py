@@ -7,9 +7,9 @@ from uuid import uuid4
 
 import pytest
 
-from app.criteria.aggregation import _outcome_for
-from app.db.models import Criterion, CriterionResult
-from app.evaluation.runner import (
+from src.criteria.aggregation import _outcome_for
+from src.db.models import Criterion, CriterionResult
+from src.evaluation.runner import (
     evaluate_criteria_dataset,
     evaluate_retrieval_dataset,
     verify_frozen_dataset,

@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.workers.trial_ingestion import (
+from src.workers.trial_ingestion import (
     MAX_TRIAL_INGESTION_PAGES,
     TrialIngestionJobError,
     TrialIngestionRequest,

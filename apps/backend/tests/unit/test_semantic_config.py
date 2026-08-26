@@ -1,6 +1,6 @@
 """Checks for the immutable Phase 8 embedding-model selection."""
 
-from app.retrieval.semantic_config import SEMANTIC_EMBEDDING_MODEL
+from src.retrieval.semantic_config import SEMANTIC_EMBEDDING_MODEL
 
 
 def test_embedding_model_selection_is_pinned_and_complete() -> None:

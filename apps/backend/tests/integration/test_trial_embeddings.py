@@ -12,10 +12,10 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
-from app.db.models import TrialEmbedding, TrialEmbeddingJob
-from app.retrieval.semantic_config import SEMANTIC_EMBEDDING_MODEL
-from app.services.source_snapshots import store_trial_version
-from app.workers.trial_embeddings import run_queued_trial_embedding_job
+from src.db.models import TrialEmbedding, TrialEmbeddingJob
+from src.retrieval.semantic_config import SEMANTIC_EMBEDDING_MODEL
+from src.services.source_snapshots import store_trial_version
+from src.workers.trial_embeddings import run_queued_trial_embedding_job
 
 TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
 DatabaseCheck = Callable[[AsyncSession], Awaitable[None]]

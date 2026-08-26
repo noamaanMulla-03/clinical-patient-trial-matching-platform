@@ -4,9 +4,9 @@ import math
 
 import pytest
 
-from app.db.models import TrialVersion
-from app.retrieval.semantic_config import SEMANTIC_EMBEDDING_MODEL
-from app.workers.trial_embeddings import (
+from src.db.models import TrialVersion
+from src.retrieval.semantic_config import SEMANTIC_EMBEDDING_MODEL
+from src.workers.trial_embeddings import (
     TrialEmbeddingJobError,
     _embedding_document,
     _validated_embedding,

@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.settings import StartupSafetyError, validate_startup_settings
+from src.settings import StartupSafetyError, validate_startup_settings
 
 
 def test_development_is_allowed_by_default() -> None:

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from app.fhir.safety import (
+from src.fhir.safety import (
     SYNTHETIC_DATA_TAG_CODE,
     SYNTHETIC_DATA_TAG_SYSTEM,
     require_synthetic_fhir_bundle,

@@ -2,8 +2,8 @@
 
 from uuid import uuid4
 
-from app.criteria.aggregation import _outcome_for
-from app.db.models import Criterion, CriterionResult
+from src.criteria.aggregation import _outcome_for
+from src.db.models import Criterion, CriterionResult
 
 
 def _criterion(*, category: str) -> Criterion:

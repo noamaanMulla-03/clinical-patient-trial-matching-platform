@@ -3,8 +3,8 @@
 import pytest
 from pydantic import ValidationError
 
-from app.fhir.safety import synthetic_data_tag
-from app.fhir.schemas import (
+from src.fhir.safety import synthetic_data_tag
+from src.fhir.schemas import (
     FHIR_IMPORT_INVALID_BUNDLE_CODE,
     ClinicalCode,
     FHIRImportRequest,

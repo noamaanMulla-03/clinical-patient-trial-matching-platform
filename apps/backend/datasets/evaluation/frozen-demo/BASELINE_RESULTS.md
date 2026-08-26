@@ -7,9 +7,9 @@ Configuration: `lexical-v1`, `manual-v1`, `deterministic-v1`,
 Run from `apps/backend`:
 
 ```bash
-uv run python -m app.evaluation verify-frozen
-uv run python -m app.evaluation retrieval
-uv run python -m app.evaluation criteria
+uv run python -m src.evaluation verify-frozen
+uv run python -m src.evaluation retrieval
+uv run python -m src.evaluation criteria
 ```
 
 The frozen data contains nine synthetic trial summaries, two synthetic

@@ -13,20 +13,20 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
-from app.criteria.aggregation import aggregate_trial_match
-from app.criteria.api_schemas import ReviewCorrectionRequest
-from app.criteria.manual import create_manual_criteria
-from app.criteria.results import CriterionResultError, store_criterion_result
-from app.criteria.schemas import AtomicCriterion, CriterionEvaluation
-from app.db.models import MatchRun, TrialMatch
-from app.fhir.schemas import FHIRImportRequest
-from app.services.criterion_details import (
+from src.criteria.aggregation import aggregate_trial_match
+from src.criteria.api_schemas import ReviewCorrectionRequest
+from src.criteria.manual import create_manual_criteria
+from src.criteria.results import CriterionResultError, store_criterion_result
+from src.criteria.schemas import AtomicCriterion, CriterionEvaluation
+from src.db.models import MatchRun, TrialMatch
+from src.fhir.schemas import FHIRImportRequest
+from src.services.criterion_details import (
     CriterionDetailError,
     append_reviewer_correction,
     retrieve_criterion_detail,
 )
-from app.services.match_runs import match_run_results
-from app.services.source_snapshots import (
+from src.services.match_runs import match_run_results
+from src.services.source_snapshots import (
     persist_synthetic_patient_import,
     store_trial_version,
 )

@@ -5,9 +5,9 @@ from datetime import date
 import pytest
 from pydantic import ValidationError
 
-from app.criteria.evaluation import evaluate_atomic_criterion
-from app.criteria.schemas import AtomicCriterion
-from app.fhir.schemas import (
+from src.criteria.evaluation import evaluate_atomic_criterion
+from src.criteria.schemas import AtomicCriterion
+from src.fhir.schemas import (
     ClinicalCode,
     FHIRProvenance,
     ObservationFactValue,

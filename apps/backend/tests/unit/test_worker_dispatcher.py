@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.workers.dispatcher import DEFAULT_POLL_SECONDS, worker_poll_seconds
+from src.workers.dispatcher import DEFAULT_POLL_SECONDS, worker_poll_seconds
 
 
 def test_worker_poll_seconds_uses_a_short_default() -> None:

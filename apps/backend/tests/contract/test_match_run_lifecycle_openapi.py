@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.main import app
+from src.main import app
 
 
 @pytest.mark.contract

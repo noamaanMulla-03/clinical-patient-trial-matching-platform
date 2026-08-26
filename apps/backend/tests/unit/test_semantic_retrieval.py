@@ -4,12 +4,12 @@ import math
 
 import pytest
 
-from app.retrieval.semantic import (
+from src.retrieval.semantic import (
     SemanticRetrievalError,
     _validated_query_embedding,
     semantic_trial_candidates_statement,
 )
-from app.retrieval.semantic_config import SEMANTIC_EMBEDDING_MODEL
+from src.retrieval.semantic_config import SEMANTIC_EMBEDDING_MODEL
 
 
 def test_semantic_query_uses_current_versioned_public_trial_embeddings() -> None:

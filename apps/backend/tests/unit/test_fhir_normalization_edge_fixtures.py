@@ -5,8 +5,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID
 
-from app.fhir.importer import normalize_patient_resource
-from app.fhir.schemas import FHIRImportRequest
+from src.fhir.importer import normalize_patient_resource
+from src.fhir.schemas import FHIRImportRequest
 
 EDGE_FIXTURE_DIRECTORY = (
     Path(__file__).resolve().parents[2] / "datasets" / "fhir-r4" / "edge-cases"

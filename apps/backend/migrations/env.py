@@ -14,8 +14,8 @@ from sqlalchemy import engine_from_config, pool
 backend_path = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(backend_path))
 
-import app.db.models  # noqa: E402, F401
-from app.db.base import Base  # noqa: E402
+import src.db.models  # noqa: E402, F401
+from src.db.base import Base  # noqa: E402
 
 config = context.config
 

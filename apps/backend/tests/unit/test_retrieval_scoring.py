@@ -2,13 +2,13 @@
 
 import pytest
 
-from app.db.models import Trial
-from app.retrieval.lexical import lexical_trial_candidates_statement
-from app.retrieval.schemas import (
+from src.db.models import Trial
+from src.retrieval.lexical import lexical_trial_candidates_statement
+from src.retrieval.schemas import (
     PatientDerivedRetrievalQuery,
     RetrievalTerm,
 )
-from app.retrieval.scoring import rank_scored_trials, score_trial_candidate
+from src.retrieval.scoring import rank_scored_trials, score_trial_candidate
 
 
 def _trial(

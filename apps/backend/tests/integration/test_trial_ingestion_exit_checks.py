@@ -13,8 +13,8 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
-from app.db.models import Criterion, Trial
-from app.services.source_snapshots import store_trial_version
+from src.db.models import Criterion, Trial
+from src.services.source_snapshots import store_trial_version
 
 TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
 DatabaseCheck = Callable[[AsyncSession], Awaitable[None]]

@@ -1,6 +1,6 @@
 """Unit tests for database-model foundations."""
 
-from app.db.base import Base
+from src.db.base import Base
 
 
 def test_base_exposes_metadata_for_registered_database_models() -> None:

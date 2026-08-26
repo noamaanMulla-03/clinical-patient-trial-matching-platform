@@ -5,8 +5,8 @@ from datetime import UTC, datetime
 
 import pytest
 
-from app.services.source_snapshots import trial_matching_source_hash
-from app.trials.extraction import (
+from src.services.source_snapshots import trial_matching_source_hash
+from src.trials.extraction import (
     TrialExtractionError,
     extract_source_update_time,
     extract_trial_fields,

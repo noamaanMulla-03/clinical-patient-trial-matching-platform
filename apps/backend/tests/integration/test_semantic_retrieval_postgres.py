@@ -11,11 +11,11 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
-from app.db.models import TrialEmbedding
-from app.retrieval.schemas import PatientDerivedRetrievalQuery, RetrievalTerm
-from app.retrieval.semantic import semantic_trial_candidates
-from app.retrieval.semantic_config import SEMANTIC_EMBEDDING_MODEL
-from app.services.source_snapshots import store_trial_version
+from src.db.models import TrialEmbedding
+from src.retrieval.schemas import PatientDerivedRetrievalQuery, RetrievalTerm
+from src.retrieval.semantic import semantic_trial_candidates
+from src.retrieval.semantic_config import SEMANTIC_EMBEDDING_MODEL
+from src.services.source_snapshots import store_trial_version
 
 TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
 DatabaseCheck = Callable[[AsyncSession], Awaitable[None]]

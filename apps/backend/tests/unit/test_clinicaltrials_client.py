@@ -10,7 +10,7 @@ from typing import Any
 import httpx
 import pytest
 
-from app.clients.clinicaltrials import (
+from src.clients.clinicaltrials import (
     ClinicalTrialsClientError,
     ClinicalTrialsGovClient,
     ClinicalTrialsRequestError,

@@ -11,13 +11,13 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
-from app.criteria.manual import (
+from src.criteria.manual import (
     ManualCriterionError,
     atomic_criterion_from_record,
     create_manual_criteria,
 )
-from app.criteria.schemas import AtomicCriterion
-from app.services.source_snapshots import store_trial_version
+from src.criteria.schemas import AtomicCriterion
+from src.services.source_snapshots import store_trial_version
 
 TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
 DatabaseCheck = Callable[[AsyncSession], Awaitable[None]]

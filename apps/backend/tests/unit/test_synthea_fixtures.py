@@ -4,7 +4,7 @@ import json
 from hashlib import sha256
 from pathlib import Path
 
-from app.fhir.schemas import FHIRImportRequest
+from src.fhir.schemas import FHIRImportRequest
 
 FIXTURE_DIRECTORY = Path(__file__).resolve().parents[2] / "datasets" / "fhir-r4"
 

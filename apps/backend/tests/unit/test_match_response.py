@@ -3,8 +3,8 @@
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from app.db.models import TrialMatch
-from app.matching.schemas import TrialMatchResponse
+from src.db.models import TrialMatch
+from src.matching.schemas import TrialMatchResponse
 
 
 def test_result_response_separates_retrieval_relevance_from_review_outcome() -> None:

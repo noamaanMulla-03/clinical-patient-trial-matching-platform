@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.trials.schemas import TrialSyncCreateRequest
+from src.trials.schemas import TrialSyncCreateRequest
 
 
 def test_trial_sync_request_uses_worker_normalization_for_a_search() -> None:

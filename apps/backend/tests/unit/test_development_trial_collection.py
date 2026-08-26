@@ -1,6 +1,6 @@
 """Checks for the fixed, intentionally small development trial collection."""
 
-from app.trials.development_collection import (
+from src.trials.development_collection import (
     DEVELOPMENT_TRIAL_COLLECTION,
     development_trial_ingestion_requests,
 )

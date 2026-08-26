@@ -7,12 +7,12 @@ extend-exclude = ["migrations/versions"]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["app"]
+known-first-party = ["src"]
 
 [tool.mypy]
 python_version = "3.12"
 mypy_path = ["."]
-files = ["app"]
+files = ["src"]
 strict = true
 warn_unused_configs = true
 

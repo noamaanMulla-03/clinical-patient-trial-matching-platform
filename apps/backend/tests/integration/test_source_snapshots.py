@@ -15,12 +15,12 @@ import pytest
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
-from app.clients.clinicaltrials import (
+from src.clients.clinicaltrials import (
     ClinicalTrialsRequestError,
     ClinicalTrialsStudiesPage,
     ClinicalTrialsStudyResponse,
 )
-from app.db.models import (
+from src.db.models import (
     Patient,
     PatientFactRecord,
     PatientImport,
@@ -28,26 +28,26 @@ from app.db.models import (
     TrialSync,
     TrialVersion,
 )
-from app.errors import APIError
-from app.fhir.schemas import FHIRImportRequest
-from app.routes.patients import get_synthetic_patient_timeline
-from app.routes.trial_syncs import (
+from src.errors import APIError
+from src.fhir.schemas import FHIRImportRequest
+from src.routes.patients import get_synthetic_patient_timeline
+from src.routes.trial_syncs import (
     create_trial_sync,
     get_current_trial_catalogue,
     get_trial_catalogue_status,
     get_trial_sync,
     queue_fixed_development_trial_collection,
 )
-from app.services.source_snapshots import (
+from src.services.source_snapshots import (
     persist_synthetic_patient_import,
     store_trial_version,
 )
-from app.trials.development_collection import (
+from src.trials.development_collection import (
     DEVELOPMENT_TRIAL_COLLECTION,
     queue_development_trial_collection,
 )
-from app.trials.schemas import TrialSyncCreateRequest
-from app.workers.trial_ingestion import (
+from src.trials.schemas import TrialSyncCreateRequest
+from src.workers.trial_ingestion import (
     TrialIngestionRequest,
     run_trial_ingestion_job,
 )

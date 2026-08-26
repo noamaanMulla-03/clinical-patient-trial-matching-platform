@@ -6,10 +6,10 @@ from math import isclose
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from app.criteria.evaluation import evaluate_atomic_criterion
-from app.criteria.schemas import AtomicCriterion
-from app.criteria.units import convert_lab_value
-from app.fhir.schemas import (
+from src.criteria.evaluation import evaluate_atomic_criterion
+from src.criteria.schemas import AtomicCriterion
+from src.criteria.units import convert_lab_value
+from src.fhir.schemas import (
     ClinicalCode,
     FHIRProvenance,
     ObservationFactValue,

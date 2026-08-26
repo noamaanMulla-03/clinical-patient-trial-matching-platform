@@ -109,10 +109,10 @@ Start FastAPI with reload enabled:
 
 ```bash
 DATABASE_URL=postgresql+asyncpg://app:app@localhost:5432/trial_matcher \
-  .venv/bin/uvicorn app.main:app --reload
+  .venv/bin/uvicorn src.main:app --reload
 ```
 Open <http://127.0.0.1:8000/docs> for the generated OpenAPI interface. Run the
-local dispatcher with `.venv/bin/python -m app.workers.dispatcher` when working
+local dispatcher with `.venv/bin/python -m src.workers.dispatcher` when working
 outside Docker Compose.
 
 ## Current API surface
@@ -146,9 +146,9 @@ application. It is a regression measure, not a clinical-performance claim.
 From `apps/backend`:
 
 ```bash
-uv run python -m app.evaluation verify-frozen
-uv run python -m app.evaluation retrieval
-uv run python -m app.evaluation criteria
+uv run python -m src.evaluation verify-frozen
+uv run python -m src.evaluation retrieval
+uv run python -m src.evaluation criteria
 ```
 
 See [the frozen baseline report](apps/backend/datasets/evaluation/frozen-demo/BASELINE_RESULTS.md),

@@ -9,12 +9,12 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.requests import Request
 from starlette.responses import Response
 
-from app.errors import (
+from src.errors import (
     http_exception_response,
     request_id_middleware,
     validation_issues_from_errors,
 )
-from app.main import app
+from src.main import app
 
 
 def _request(*, request_id: str | None = None) -> Request:

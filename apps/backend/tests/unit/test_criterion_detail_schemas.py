@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.criteria.api_schemas import ReviewCorrectionRequest
+from src.criteria.api_schemas import ReviewCorrectionRequest
 
 
 def test_reviewer_correction_normalizes_identifiers_and_rejects_extras() -> None:

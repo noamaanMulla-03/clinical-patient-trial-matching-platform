@@ -69,7 +69,7 @@ For a TREC run, create one `retrieval.json` compatible file containing:
 Then run:
 
 ```bash
-uv run python -m app.evaluation retrieval --dataset /path/to/trec-2021-retrieval.json
+uv run python -m src.evaluation retrieval --dataset /path/to/trec-2021-retrieval.json
 ```
 
 The command reports nDCG at 5 and 10 with graded 0/1/2 judgments; Precision at

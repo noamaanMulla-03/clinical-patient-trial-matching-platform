@@ -3,11 +3,11 @@
 from datetime import date
 from uuid import uuid4
 
-from app.criteria.aggregation import _outcome_for
-from app.criteria.evaluation import evaluate_atomic_criterion
-from app.criteria.schemas import AtomicCriterion
-from app.db.models import Criterion, CriterionResult
-from app.fhir.schemas import (
+from src.criteria.aggregation import _outcome_for
+from src.criteria.evaluation import evaluate_atomic_criterion
+from src.criteria.schemas import AtomicCriterion
+from src.db.models import Criterion, CriterionResult
+from src.fhir.schemas import (
     ClinicalCode,
     FHIRProvenance,
     ObservationFactValue,

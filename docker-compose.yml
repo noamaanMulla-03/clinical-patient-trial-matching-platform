@@ -101,7 +101,7 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
-    command: ["python", "-m", "app.workers.dispatcher"]
+    command: ["python", "-m", "src.workers.dispatcher"]
 
   web:
     build:

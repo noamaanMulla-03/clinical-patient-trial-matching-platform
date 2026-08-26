@@ -2,7 +2,7 @@
 
 import logging
 
-from app.observability.redaction import (
+from src.observability.redaction import (
     REDACTED_FHIR_CONTENT,
     REDACTED_LOG_ARGUMENTS,
     REDACTED_VALUE,

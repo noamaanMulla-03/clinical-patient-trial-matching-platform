@@ -12,23 +12,23 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
-from app.db.models import PatientFactRecord, Trial, TrialMatch
-from app.fhir.safety import synthetic_data_tag
-from app.fhir.schemas import FHIRImportRequest
-from app.retrieval.semantic import SemanticTrialCandidate
-from app.services.match_runs import (
+from src.db.models import PatientFactRecord, Trial, TrialMatch
+from src.fhir.safety import synthetic_data_tag
+from src.fhir.schemas import FHIRImportRequest
+from src.retrieval.semantic import SemanticTrialCandidate
+from src.services.match_runs import (
     MAX_MATCH_RUN_CANDIDATES,
     cancel_match_run,
     create_queued_match_run,
     match_run_response,
     match_run_results,
 )
-from app.services.source_snapshots import (
+from src.services.source_snapshots import (
     persist_synthetic_patient_import,
     store_trial_version,
 )
-from app.workers import match_runs as match_run_worker
-from app.workers.match_runs import run_match_run_job
+from src.workers import match_runs as match_run_worker
+from src.workers.match_runs import run_match_run_job
 
 TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
 DatabaseCheck = Callable[[AsyncSession], Awaitable[None]]

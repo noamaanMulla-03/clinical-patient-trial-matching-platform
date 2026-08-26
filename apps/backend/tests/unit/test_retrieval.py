@@ -2,7 +2,7 @@
 
 from datetime import date
 
-from app.fhir.schemas import (
+from src.fhir.schemas import (
     ClinicalCode,
     ConditionFactValue,
     FHIRProvenance,
@@ -10,9 +10,9 @@ from app.fhir.schemas import (
     PatientFact,
     ProcedureFactValue,
 )
-from app.retrieval.filtering import trial_matches_metadata
-from app.retrieval.query_builder import build_patient_retrieval_query
-from app.retrieval.schemas import TrialMetadataFilters, TrialSearchMetadata
+from src.retrieval.filtering import trial_matches_metadata
+from src.retrieval.query_builder import build_patient_retrieval_query
+from src.retrieval.schemas import TrialMetadataFilters, TrialSearchMetadata
 
 
 def _fact(
