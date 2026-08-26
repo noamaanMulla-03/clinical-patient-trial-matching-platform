@@ -1,4 +1,4 @@
-"""Safe API contracts for asynchronous lexical match runs and their candidates."""
+"""Safe API contracts for asynchronous lexical and semantic match runs."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ _RETRIEVAL_FIELDS: tuple[RetrievalField, ...] = (
 
 
 class MatchRunCreateRequest(BaseModel):
-    """Select one completed synthetic patient import for lexical candidate retrieval."""
+    """Select one completed synthetic patient import for candidate retrieval."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -99,7 +99,11 @@ class TrialMatchResponse(BaseModel):
     source_updated_at: datetime | None = None
     candidate_rank: int = Field(gt=0)
     retrieval_scores: dict[str, Any]
+    retrieval_sources: list[Literal["lexical", "semantic"]] = Field(
+        default_factory=list
+    )
     retrieval_relevance: RetrievalRelevanceResponse | None = None
+    semantic_relevance: SemanticRetrievalRelevanceResponse | None = None
     criterion_results: list[CriterionResultSummary] = Field(default_factory=list)
     outcome: (
         Literal["potential_match", "likely_excluded", "needs_review", "not_relevant"]
@@ -130,7 +134,11 @@ class TrialMatchResponse(BaseModel):
             source_updated_at=source_updated_at,
             candidate_rank=match.candidate_rank,
             retrieval_scores=match.retrieval_scores,
+            retrieval_sources=_retrieval_sources(match.retrieval_scores),
             retrieval_relevance=RetrievalRelevanceResponse.from_scores(
+                match.retrieval_scores
+            ),
+            semantic_relevance=SemanticRetrievalRelevanceResponse.from_scores(
                 match.retrieval_scores
             ),
             criterion_results=criterion_results or [],
@@ -183,6 +191,30 @@ class RetrievalRelevanceResponse(BaseModel):
         )
 
 
+class SemanticRetrievalRelevanceResponse(BaseModel):
+    """Cosine similarity from a transient query, never a clinical outcome."""
+
+    score: float = Field(ge=-1, le=1)
+    rank: int = Field(gt=0)
+
+    @classmethod
+    def from_scores(
+        cls, scores: dict[str, Any]
+    ) -> SemanticRetrievalRelevanceResponse | None:
+        score = scores.get("semantic_score")
+        rank = scores.get("semantic_rank")
+        if (
+            not isinstance(score, (int, float))
+            or isinstance(score, bool)
+            or score < -1
+            or score > 1
+            or type(rank) is not int
+            or rank < 1
+        ):
+            return None
+        return cls(score=float(score), rank=rank)
+
+
 class CriterionResultSummary(BaseModel):
     """A reviewable criterion link attached to the exact trial-match snapshot."""
 
@@ -204,6 +236,15 @@ def _matched_fields(value: Any) -> list[RetrievalField]:
         if type(count) is int and count > 0:
             fields.append(field_name)
     return fields
+
+
+def _retrieval_sources(value: dict[str, Any]) -> list[Literal["lexical", "semantic"]]:
+    sources = value.get("candidate_sources")
+    if not isinstance(sources, Sequence) or isinstance(sources, (str, bytes)):
+        return []
+    return list(
+        dict.fromkeys(source for source in sources if source in {"lexical", "semantic"})
+    )
 
 
 def _matched_fact_ids(value: Any) -> list[str]:

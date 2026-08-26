@@ -183,12 +183,17 @@ export type MatchCandidate = {
   study_status?: string | null;
   source_updated_at?: string | null;
   candidate_rank: number;
+  retrieval_sources: ('lexical' | 'semantic')[];
   retrieval_relevance?: {
     score: number;
     matched_term_count: number;
     query_term_count: number;
     matched_fields: ('conditions' | 'title' | 'interventions' | 'eligibility_text')[];
     matched_fact_ids: string[];
+  } | null;
+  semantic_relevance?: {
+    score: number;
+    rank: number;
   } | null;
   criterion_results: {
     id: string;
@@ -285,6 +290,13 @@ export function retrievalReason(
     .map((field) => field.replace(/_/g, ' '))
     .join(', ');
   return `Documented patient-fact terms matched the trial ${fields} field${relevance.matched_fields.length === 1 ? '' : 's'}.`;
+}
+
+export function semanticRetrievalReason(
+  relevance: MatchCandidate['semantic_relevance'],
+): string {
+  if (!relevance) return 'Semantic retrieval details are not available.';
+  return 'Listed from similarity between the synthetic patient context and public trial text; review the source trial criteria before relying on it.';
 }
 
 export type ResultTab =

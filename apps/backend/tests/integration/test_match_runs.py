@@ -12,9 +12,10 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
-from app.db.models import PatientFactRecord, TrialMatch
+from app.db.models import PatientFactRecord, Trial, TrialMatch
 from app.fhir.safety import synthetic_data_tag
 from app.fhir.schemas import FHIRImportRequest
+from app.retrieval.semantic import SemanticTrialCandidate
 from app.services.match_runs import (
     MAX_MATCH_RUN_CANDIDATES,
     cancel_match_run,
@@ -55,10 +56,17 @@ async def _with_rollback(check: DatabaseCheck) -> None:
 
 
 @pytest.mark.integration
-def test_worker_persists_ranked_trial_versions_for_one_immutable_patient_import() -> (
-    None
-):
+def test_worker_persists_ranked_trial_versions_for_one_immutable_patient_import(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """The worker stores ranks and score components without returning patient text."""
+
+    async def no_semantic(
+        *_: object, **__: object
+    ) -> tuple[SemanticTrialCandidate, ...]:
+        return ()
+
+    monkeypatch.setattr(match_run_worker, "semantic_trial_candidates", no_semantic)
 
     async def check(session: AsyncSession) -> None:
         patient_import = await persist_synthetic_patient_import(
@@ -119,7 +127,10 @@ def test_worker_persists_ranked_trial_versions_for_one_immutable_patient_import(
         results = await match_run_results(session, completed_run)
         assert response.candidate_limit == MAX_MATCH_RUN_CANDIDATES
         assert response.candidate_count == 1
-        assert response.configuration_versions["retrieval"] == "lexical-v1"
+        assert (
+            response.configuration_versions["retrieval"]
+            == "lexical-semantic-fallback-v1"
+        )
         assert results[0].nct_id == nct_id
         assert results[0].title == "Diabetes and metformin study"
         assert results[0].study_status == "RECRUITING"
@@ -149,6 +160,68 @@ def test_worker_persists_ranked_trial_versions_for_one_immutable_patient_import(
         assert rerun.id != run.id
         assert completed_rerun.status == "completed"
         assert rerun_results[0].id != results[0].id
+
+    _run_database_check(check)
+
+
+@pytest.mark.integration
+def test_worker_uses_semantic_only_candidate_when_lexical_has_no_match(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Semantic recall supplements rather than changes lexical candidate ordering."""
+
+    async def check(session: AsyncSession) -> None:
+        patient_import = await persist_synthetic_patient_import(
+            session, FHIRImportRequest(bundle=_synthetic_diabetes_bundle())
+        )
+        nct_id = f"NCT{uuid4().int % 100_000_000:08d}"
+        trial_version = await store_trial_version(
+            session,
+            nct_id=nct_id,
+            raw_study={
+                "protocolSection": {
+                    "identificationModule": {
+                        "nctId": nct_id,
+                        "briefTitle": "A public study with different wording",
+                    },
+                    "eligibilityModule": {"eligibilityCriteria": "Adults only"},
+                    "statusModule": {"overallStatus": "RECRUITING"},
+                }
+            },
+            retrieved_at=datetime(2026, 8, 25, tzinfo=UTC),
+        )
+        trial = await session.get(Trial, nct_id)
+        assert trial is not None
+
+        async def semantic_only(
+            *_: object, **__: object
+        ) -> tuple[SemanticTrialCandidate, ...]:
+            return (SemanticTrialCandidate(trial=trial, score=0.74, rank=1),)
+
+        monkeypatch.setattr(
+            match_run_worker, "semantic_trial_candidates", semantic_only
+        )
+        run = await create_queued_match_run(
+            session, patient_import_id=patient_import.patient_import_id
+        )
+        completed = await run_match_run_job(session, run.id)
+        match = await session.scalar(
+            select(TrialMatch).where(TrialMatch.match_run_id == run.id)
+        )
+
+        assert completed.status == "completed"
+        assert match is not None
+        assert match.trial_version_id == trial_version.id
+        assert match.retrieval_scores == {
+            "candidate_sources": ["semantic"],
+            "semantic_score": 0.74,
+            "semantic_rank": 1,
+        }
+        results = await match_run_results(session, completed)
+        assert results[0].retrieval_sources == ["semantic"]
+        assert results[0].retrieval_relevance is None
+        assert results[0].semantic_relevance is not None
+        assert results[0].semantic_relevance.score == 0.74
 
     _run_database_check(check)
 

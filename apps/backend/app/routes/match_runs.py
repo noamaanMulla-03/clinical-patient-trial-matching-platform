@@ -1,4 +1,4 @@
-"""Routes that queue and expose durable lexical match-run state."""
+"""Routes that queue and expose durable lexical and semantic match-run state."""
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ DatabaseSession = Annotated[AsyncSession, Depends(get_database_session)]
     operation_id="create_match_run",
     response_model=MatchRunResponse,
     status_code=status.HTTP_202_ACCEPTED,
-    summary="Queue lexical retrieval for one synthetic patient import",
+    summary="Queue lexical and semantic retrieval for one synthetic patient import",
     responses={
         202: {"headers": {"X-Request-ID": OPENAPI_REQUEST_ID_RESPONSE_HEADER}},
         422: {
@@ -67,7 +67,7 @@ async def create_match_run(
     "/match-runs/{run_id}/cancel",
     operation_id="cancel_match_run",
     response_model=MatchRunResponse,
-    summary="Cancel queued or active lexical retrieval work",
+    summary="Cancel queued or active retrieval work",
     responses={
         200: {"headers": {"X-Request-ID": OPENAPI_REQUEST_ID_RESPONSE_HEADER}},
         404: {
@@ -108,7 +108,7 @@ async def cancel_queued_or_running_match_run(
     "/match-runs/{run_id}",
     operation_id="get_match_run",
     response_model=MatchRunResponse,
-    summary="Retrieve safe lexical match-run status",
+    summary="Retrieve safe lexical and semantic match-run status",
     responses={
         404: {
             "description": "Match run was not found.",
@@ -127,7 +127,7 @@ async def get_match_run(run_id: UUID, session: DatabaseSession) -> MatchRunRespo
     "/match-runs/{run_id}/results",
     operation_id="get_match_run_results",
     response_model=list[TrialMatchResponse],
-    summary="Retrieve persisted ranked lexical trial candidates",
+    summary="Retrieve persisted ranked lexical and semantic trial candidates",
     responses={
         404: {
             "description": "Match run was not found.",

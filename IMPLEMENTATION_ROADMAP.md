@@ -169,7 +169,7 @@ This roadmap translates the technical design into small, incremental delivery st
 
 - [x] Choose and version an embedding model.
 - [x] Add pgvector storage and embedding-generation jobs.
-- [ ] Implement semantic retrieval alongside lexical retrieval.
+- [x] Implement semantic retrieval alongside lexical retrieval.
 - [ ] Fuse rankings using reciprocal rank fusion.
 - [ ] Compare lexical-only versus hybrid retrieval on held-out TREC topics.
 - [ ] Define criterion-parser input and output schemas.

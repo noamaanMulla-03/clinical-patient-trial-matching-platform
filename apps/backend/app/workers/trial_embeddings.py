@@ -6,71 +6,24 @@ import asyncio
 import math
 from collections.abc import Sequence
 from datetime import UTC, datetime
-from functools import lru_cache
-from typing import Protocol
 from uuid import UUID, uuid4
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import TrialEmbedding, TrialEmbeddingJob, TrialVersion
+from app.retrieval.embedding_encoder import (
+    EmbeddingEncoder,
+    EmbeddingEncoderError,
+    EmbeddingEncoderUnavailableError,
+    configured_embedding_encoder,
+)
 from app.retrieval.semantic_config import SEMANTIC_EMBEDDING_MODEL
 from app.trials.extraction import TrialExtractionError, extract_trial_fields
 
 
 class TrialEmbeddingJobError(ValueError):
     """Raised when a public-trial embedding job cannot be safely completed."""
-
-
-class EmbeddingEncoderUnavailableError(TrialEmbeddingJobError):
-    """Raised when the local, pinned encoder cannot be loaded."""
-
-
-class EmbeddingEncoder(Protocol):
-    """Minimal encoder surface allowing focused tests without loading a model."""
-
-    def encode(self, document: str) -> Sequence[float]: ...
-
-
-class SentenceTransformerEmbeddingEncoder:
-    """Lazy local-model adapter; public trial text never leaves this process."""
-
-    def __init__(self) -> None:
-        try:
-            from sentence_transformers import SentenceTransformer
-        except ImportError as error:
-            raise EmbeddingEncoderUnavailableError(
-                "The configured embedding package is unavailable."
-            ) from error
-        try:
-            self._model = SentenceTransformer(
-                SEMANTIC_EMBEDDING_MODEL.repository,
-                revision=SEMANTIC_EMBEDDING_MODEL.revision,
-            )
-        except Exception as error:
-            raise EmbeddingEncoderUnavailableError(
-                "The configured embedding model could not be loaded."
-            ) from error
-
-    def encode(self, document: str) -> Sequence[float]:
-        """Generate one normalized vector without logging source trial text."""
-        try:
-            vector = self._model.encode(
-                document,
-                normalize_embeddings=SEMANTIC_EMBEDDING_MODEL.normalize_embeddings,
-                show_progress_bar=False,
-            )
-            return [float(value) for value in vector]
-        except Exception as error:
-            raise TrialEmbeddingJobError(
-                "The configured embedding model could not encode a trial."
-            ) from error
-
-
-@lru_cache(maxsize=1)
-def configured_embedding_encoder() -> SentenceTransformerEmbeddingEncoder:
-    """Load one pinned encoder per worker process rather than per queued trial."""
-    return SentenceTransformerEmbeddingEncoder()
 
 
 async def run_queued_trial_embedding_job(
@@ -208,6 +161,8 @@ def _safe_failure_details(error: Exception) -> tuple[str, str]:
     """Keep source text, model output, and exceptions out of durable job state."""
     if isinstance(error, EmbeddingEncoderUnavailableError):
         return "embedding_model_unavailable", "Embedding model could not be loaded."
+    if isinstance(error, EmbeddingEncoderError):
+        return "embedding_generation_invalid", "Trial embedding could not be generated."
     if isinstance(error, TrialEmbeddingJobError):
         return "embedding_generation_invalid", "Trial embedding could not be generated."
     return "embedding_generation_unexpected", "Trial embedding could not be generated."

@@ -23,17 +23,18 @@ from app.matching.schemas import (
     MatchRunResponse,
     TrialMatchResponse,
 )
+from app.retrieval.semantic_config import SEMANTIC_EMBEDDING_MODEL
 from app.trials.extraction import TrialExtractionError, extract_trial_fields
 
 MAX_MATCH_RUN_CANDIDATES = 100
-LEXICAL_RETRIEVAL_VERSION = "lexical-v1"
+HYBRID_RETRIEVAL_VERSION = "lexical-semantic-fallback-v1"
 _MATCH_RUN_VERSIONS = {
     "parser": "manual-v1",
-    "retrieval": LEXICAL_RETRIEVAL_VERSION,
+    "retrieval": HYBRID_RETRIEVAL_VERSION,
     "rule_engine": "deterministic-v1",
     "terminology_mapping": "source-coded-v1",
     "prompt": "not-used-v1",
-    "model_configuration": "not-used-v1",
+    "model_configuration": SEMANTIC_EMBEDDING_MODEL.configuration_version,
 }
 
 
@@ -217,8 +218,10 @@ def _configuration_snapshot(patient_import_id: UUID) -> dict[str, object]:
     return {
         "patient_import_id": str(patient_import_id),
         "candidate_limit": MAX_MATCH_RUN_CANDIDATES,
-        "candidate_generation": LEXICAL_RETRIEVAL_VERSION,
+        "candidate_generation": HYBRID_RETRIEVAL_VERSION,
         "metadata_filtering": "conservative-v1",
         "scoring": "field-weighted-lexical-v1",
+        "semantic_candidate_policy": "lexical-rank-semantic-fallback-v1",
+        "embedding_model": SEMANTIC_EMBEDDING_MODEL.snapshot(),
         "versions": _MATCH_RUN_VERSIONS,
     }

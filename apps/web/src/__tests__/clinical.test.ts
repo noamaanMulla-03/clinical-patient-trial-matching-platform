@@ -9,6 +9,7 @@ import {
   Fact,
   MatchCandidate,
   retrievalReason,
+  semanticRetrievalReason,
 } from '../clinical';
 
 const observation: Fact = {
@@ -83,6 +84,7 @@ describe('clinical display helpers', () => {
         title: 'Diabetes study',
         study_status: 'RECRUITING',
         candidate_rank: 1,
+        retrieval_sources: ['lexical'],
         outcome: 'potential_match',
         criterion_results: [],
       },
@@ -93,6 +95,7 @@ describe('clinical display helpers', () => {
         title: 'Diabetes extension',
         study_status: 'COMPLETED',
         candidate_rank: 2,
+        retrieval_sources: ['lexical'],
         outcome: 'needs_review',
         criterion_results: [],
       },
@@ -103,6 +106,7 @@ describe('clinical display helpers', () => {
         title: 'Heart study',
         study_status: 'RECRUITING',
         candidate_rank: 3,
+        retrieval_sources: ['semantic'],
         outcome: 'likely_excluded',
         criterion_results: [],
       },
@@ -126,5 +130,11 @@ describe('clinical display helpers', () => {
         matched_fact_ids: ['fact-1'],
       }),
     ).toBe('Documented patient-fact terms matched the trial conditions, title fields.');
+  });
+
+  it('explains a semantic candidate without treating it as a decision', () => {
+    expect(semanticRetrievalReason({ score: 0.74, rank: 1 })).toContain(
+      'review the source trial criteria',
+    );
   });
 });

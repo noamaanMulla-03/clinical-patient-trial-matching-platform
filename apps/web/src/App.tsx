@@ -21,6 +21,7 @@ import {
   TrialSync,
   TrialSyncCreateInput,
   retrievalReason,
+  semanticRetrievalReason,
 } from './clinical';
 
 type Screen = 'catalogue' | 'import' | 'timeline' | 'match-run' | 'criterion-detail';
@@ -1206,12 +1207,18 @@ function CandidateList({
                       <dd>
                         {candidate.retrieval_relevance
                           ? `${candidate.retrieval_relevance.score.toFixed(1)} score · ${candidate.retrieval_relevance.matched_term_count}/${candidate.retrieval_relevance.query_term_count} terms`
-                          : 'Not available'}
+                          : candidate.semantic_relevance
+                            ? `Semantic similarity ${candidate.semantic_relevance.score.toFixed(2)} · rank ${candidate.semantic_relevance.rank}`
+                            : 'Not available'}
                       </dd>
                     </div>
                     <div className="why-listed">
                       <dt>Why listed</dt>
-                      <dd>{retrievalReason(candidate.retrieval_relevance)}</dd>
+                      <dd>
+                        {candidate.retrieval_relevance
+                          ? retrievalReason(candidate.retrieval_relevance)
+                          : semanticRetrievalReason(candidate.semantic_relevance)}
+                      </dd>
                     </div>
                   </dl>
                   {candidate.retrieval_relevance?.matched_fact_ids.length ? (

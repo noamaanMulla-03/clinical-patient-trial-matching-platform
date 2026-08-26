@@ -18,6 +18,9 @@ def test_result_response_separates_retrieval_relevance_from_review_outcome() -> 
             "lexical_score": 6.0,
             "matched_term_count": 2,
             "query_term_count": 3,
+            "candidate_sources": ["lexical", "semantic"],
+            "semantic_score": 0.75,
+            "semantic_rank": 2,
         },
         outcome="needs_review",
         created_at=datetime(2026, 8, 23, tzinfo=UTC),
@@ -33,6 +36,7 @@ def test_result_response_separates_retrieval_relevance_from_review_outcome() -> 
     )
 
     assert response.outcome == "needs_review"
+    assert response.retrieval_sources == ["lexical", "semantic"]
     assert response.retrieval_relevance is not None
     assert response.retrieval_relevance.model_dump() == {
         "score": 6.0,
@@ -44,6 +48,8 @@ def test_result_response_separates_retrieval_relevance_from_review_outcome() -> 
     assert response.patient_id == "synthetic-patient-1"
     assert response.study_status == "RECRUITING"
     assert response.source_updated_at == datetime(2026, 8, 22, tzinfo=UTC)
+    assert response.semantic_relevance is not None
+    assert response.semantic_relevance.model_dump() == {"score": 0.75, "rank": 2}
 
 
 def test_result_response_keeps_invalid_retrieval_relevance_unavailable() -> None:
