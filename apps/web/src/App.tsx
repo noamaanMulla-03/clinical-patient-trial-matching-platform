@@ -1094,6 +1094,14 @@ function RunDetails({
         </dl>
       </div>
       {run.failure && <p className="error">{run.failure.message}</p>}
+      {run.retrieval_execution?.mode && (
+        <p className="quality-banner">
+          Retrieval mode: <span className="mono">{run.retrieval_execution.mode}</span>
+          {run.retrieval_execution.degradation_reasons?.length
+            ? ` — ${run.retrieval_execution.degradation_reasons.join(', ')}`
+            : ''}
+        </p>
+      )}
       {run.cancellation_requested && (
         <p className="quality-banner">
           Cancellation has been requested; the worker will stop at its next safe

@@ -6,30 +6,54 @@ import asyncio
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import datetime
 
-from sqlalchemy import Select, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.db.models import Trial, TrialEmbedding, TrialVersion
+from src.db.models import TrialEmbedding, TrialVersion
 from src.retrieval.embedding_encoder import (
     EmbeddingEncoder,
     configured_embedding_encoder,
 )
 from src.retrieval.schemas import PatientDerivedRetrievalQuery
 from src.retrieval.semantic_config import SEMANTIC_EMBEDDING_MODEL
+from src.retrieval.trial_documents import (
+    SearchableTrial,
+    document_from_trial_version,
+)
 
 
 class SemanticRetrievalError(ValueError):
     """Raised when a transient semantic query violates the pinned vector contract."""
 
 
+class SemanticRetrievalIncompleteError(SemanticRetrievalError):
+    """Raised when the declared catalogue lacks complete current-vector coverage."""
+
+
 @dataclass(frozen=True, slots=True)
 class SemanticTrialCandidate:
-    """One current public-trial projection retrieved by semantic similarity."""
+    """One versioned public-trial snapshot retrieved by semantic similarity."""
 
-    trial: Trial
+    trial: SearchableTrial
     score: float
     rank: int
+
+
+@dataclass(frozen=True, slots=True)
+class SemanticCoverage:
+    """Non-clinical catalogue coverage needed to make semantic mode auditable."""
+
+    current_trial_count: int
+    embedded_trial_count: int
+
+    @property
+    def is_complete(self) -> bool:
+        return (
+            self.current_trial_count > 0
+            and self.current_trial_count == self.embedded_trial_count
+        )
 
 
 async def semantic_trial_candidates(
@@ -37,6 +61,7 @@ async def semantic_trial_candidates(
     query: PatientDerivedRetrievalQuery,
     *,
     candidate_limit: int,
+    catalogue_as_of: datetime,
     encoder: EmbeddingEncoder | None = None,
 ) -> tuple[SemanticTrialCandidate, ...]:
     """Retrieve current trial vectors with one in-memory synthetic-patient query.
@@ -46,8 +71,13 @@ async def semantic_trial_candidates(
     """
     if candidate_limit < 1:
         raise ValueError("candidate_limit must be positive.")
-    if not query.lexical_text or not await _has_current_embeddings(session):
+    if not query.lexical_text:
         return ()
+    coverage = await semantic_coverage(session, catalogue_as_of=catalogue_as_of)
+    if not coverage.is_complete:
+        raise SemanticRetrievalIncompleteError(
+            "Semantic retrieval requires complete current-trial vector coverage."
+        )
 
     active_encoder: EmbeddingEncoder
     if encoder is None:
@@ -58,50 +88,78 @@ async def semantic_trial_candidates(
         await asyncio.to_thread(active_encoder.encode, query.lexical_text)
     )
     rows = await session.execute(
-        semantic_trial_candidates_statement(vector, candidate_limit=candidate_limit)
+        semantic_trial_candidates_statement(
+            vector,
+            candidate_limit=candidate_limit,
+            catalogue_as_of=catalogue_as_of,
+        )
     )
     return tuple(
-        SemanticTrialCandidate(trial=trial, score=float(score), rank=rank)
-        for rank, (trial, score) in enumerate(rows, start=1)
+        SemanticTrialCandidate(
+            trial=document_from_trial_version(version), score=float(score), rank=rank
+        )
+        for rank, (version, score) in enumerate(rows, start=1)
     )
 
 
 def semantic_trial_candidates_statement(
-    vector: Sequence[float], *, candidate_limit: int
-) -> Select[tuple[Trial, float]]:
-    """Build a bounded cosine-similarity query over current source versions only."""
+    vector: Sequence[float], *, candidate_limit: int, catalogue_as_of: datetime
+) -> Select[tuple[TrialVersion, float]]:
+    """Build a bounded cosine query over one immutable catalogue instant."""
     if candidate_limit < 1:
         raise ValueError("candidate_limit must be positive.")
     query_vector = _validated_query_embedding(vector)
     distance = TrialEmbedding.embedding.cosine_distance(query_vector)
     score = (1 - distance).label("semantic_score")
     return (
-        select(Trial, score)
-        .join(TrialVersion, TrialVersion.nct_id == Trial.nct_id)
+        select(TrialVersion, score)
         .join(TrialEmbedding, TrialEmbedding.trial_version_id == TrialVersion.id)
         .where(
-            TrialVersion.superseded_at.is_(None),
+            TrialVersion.ingested_at <= catalogue_as_of,
+            (TrialVersion.superseded_at.is_(None))
+            | (TrialVersion.superseded_at > catalogue_as_of),
             TrialEmbedding.model_configuration_version
             == SEMANTIC_EMBEDDING_MODEL.configuration_version,
+            TrialEmbedding.created_at <= catalogue_as_of,
         )
-        .order_by(distance, Trial.nct_id)
+        .order_by(distance, TrialVersion.nct_id)
         .limit(candidate_limit)
     )
 
 
-async def _has_current_embeddings(session: AsyncSession) -> bool:
-    return (
+async def semantic_coverage(
+    session: AsyncSession, *, catalogue_as_of: datetime
+) -> SemanticCoverage:
+    """Count model coverage for the catalogue visible to one match run."""
+    current_trial_count = int(
         await session.scalar(
-            select(TrialEmbedding.id)
-            .join(TrialVersion, TrialVersion.id == TrialEmbedding.trial_version_id)
-            .where(
-                TrialVersion.superseded_at.is_(None),
+            select(func.count()).select_from(TrialVersion).where(
+                TrialVersion.ingested_at <= catalogue_as_of,
+                (TrialVersion.superseded_at.is_(None))
+                | (TrialVersion.superseded_at > catalogue_as_of),
+            )
+        )
+        or 0
+    )
+    embedded_trial_count = int(
+        await session.scalar(
+            select(func.count()).select_from(TrialEmbedding).join(
+                TrialVersion, TrialVersion.id == TrialEmbedding.trial_version_id
+            ).where(
+                TrialVersion.ingested_at <= catalogue_as_of,
+                (TrialVersion.superseded_at.is_(None))
+                | (TrialVersion.superseded_at > catalogue_as_of),
                 TrialEmbedding.model_configuration_version
                 == SEMANTIC_EMBEDDING_MODEL.configuration_version,
+                TrialEmbedding.created_at <= catalogue_as_of,
             )
-            .limit(1)
         )
-    ) is not None
+        or 0
+    )
+    return SemanticCoverage(
+        current_trial_count=current_trial_count,
+        embedded_trial_count=embedded_trial_count,
+    )
 
 
 def _validated_query_embedding(vector: Sequence[float]) -> list[float]:

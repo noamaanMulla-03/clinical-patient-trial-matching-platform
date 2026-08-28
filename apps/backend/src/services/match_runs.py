@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Literal, cast
 from uuid import UUID
 
@@ -33,6 +34,9 @@ from src.retrieval.semantic_config import SEMANTIC_EMBEDDING_MODEL
 from src.trials.extraction import TrialExtractionError, extract_trial_fields
 
 MAX_MATCH_RUN_CANDIDATES = 100
+LEXICAL_POOL_LIMIT = 400
+SEMANTIC_POOL_LIMIT = 400
+FUSION_POOL_LIMIT = 250
 HYBRID_RETRIEVAL_VERSION = "lexical-semantic-rrf-structured-reranker-v1"
 _MATCH_RUN_VERSIONS = {
     "parser": ELIGIBILITY_PARSER_CONFIGURATION.parser_version,
@@ -50,6 +54,35 @@ def match_run_candidate_limit(run: MatchRun) -> int:
     if type(candidate_limit) is not int or candidate_limit < 1:
         raise MatchRunError("Match run has an invalid candidate limit.")
     return candidate_limit
+
+
+def match_run_pool_limit(run: MatchRun, name: str) -> int:
+    """Read a frozen stage-specific retrieval bound from one run contract."""
+    pools = run.configuration_snapshot.get("candidate_pools")
+    if not isinstance(pools, dict):
+        raise MatchRunError("Match run has invalid candidate pools.")
+    value = pools.get(name)
+    if type(value) is not int or value < 1:
+        raise MatchRunError("Match run has an invalid candidate pool limit.")
+    return value
+
+
+def match_run_catalogue_as_of(run: MatchRun) -> datetime:
+    """Read the immutable catalogue cut-off recorded when the run was queued."""
+    value = run.configuration_snapshot.get("catalogue_as_of")
+    if not isinstance(value, str):
+        raise MatchRunError("Match run has no catalogue snapshot time.")
+    try:
+        as_of = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as error:
+        raise MatchRunError(
+            "Match run has an invalid catalogue snapshot time."
+        ) from error
+    if as_of.tzinfo is None:
+        raise MatchRunError(
+            "Match run catalogue snapshot time must include a timezone."
+        )
+    return as_of.astimezone(UTC)
 
 
 class MatchRunError(ValueError):
@@ -71,9 +104,12 @@ async def create_queued_match_run(
     patient_import = await session.get(PatientImport, patient_import_id)
     if patient_import is None or patient_import.status != "completed":
         raise MatchRunError("Match runs require a completed patient import.")
+    catalogue_as_of = datetime.now(UTC)
     run = MatchRun(
         patient_import_id=patient_import.id,
-        configuration_snapshot=_configuration_snapshot(patient_import.id),
+        configuration_snapshot=_configuration_snapshot(
+            patient_import.id, catalogue_as_of=catalogue_as_of
+        ),
         parser_version=_MATCH_RUN_VERSIONS["parser"],
         retrieval_version=_MATCH_RUN_VERSIONS["retrieval"],
         rule_engine_version=_MATCH_RUN_VERSIONS["rule_engine"],
@@ -146,8 +182,7 @@ async def match_run_results(
         if version is None:
             continue
         title, study_status = _trial_display_metadata(version)
-        results.append(
-            TrialMatchResponse.from_record(
+        response = TrialMatchResponse.from_record(
                 match,
                 patient_id=patient_import.patient_id,
                 nct_id=version.nct_id,
@@ -156,8 +191,38 @@ async def match_run_results(
                 source_updated_at=version.source_updated_at,
                 criterion_results=criterion_summaries.get(match.id, []),
             )
+        response.outcome = _current_assessment_outcome(
+            criterion_summaries.get(match.id, [])
         )
+        results.append(response)
     return results
+
+
+def _current_assessment_outcome(
+    results: list[CriterionResultSummary],
+) -> Literal["potential_match", "likely_excluded", "needs_review", "not_relevant"]:
+    """Derive the displayed assessment from immutable results and corrections.
+
+    The stored retrieval event is never rewritten. A correction can only produce a
+    new conservative display outcome, never make unsupported evidence reassuring.
+    """
+    if not results or any(
+        result.requires_review
+        or result.current_outcome in {"unknown", "conflicting"}
+        for result in results
+    ):
+        return "needs_review"
+    if any(
+        result.category == "exclusion" and result.current_outcome == "not_met"
+        for result in results
+    ):
+        return "likely_excluded"
+    if any(
+        result.category == "inclusion" and result.current_outcome == "not_met"
+        for result in results
+    ):
+        return "not_relevant"
+    return "potential_match"
 
 
 async def _criterion_summaries_by_match(
@@ -219,11 +284,21 @@ def _trial_display_metadata(version: TrialVersion) -> tuple[str | None, str | No
     return fields.title, fields.status
 
 
-def _configuration_snapshot(patient_import_id: UUID) -> dict[str, object]:
+def _configuration_snapshot(
+    patient_import_id: UUID, *, catalogue_as_of: datetime
+) -> dict[str, object]:
     """Freeze candidate policy, input identity, and engine versions before queueing."""
     return {
         "patient_import_id": str(patient_import_id),
+        "catalogue_as_of": catalogue_as_of.isoformat(),
+        "catalogue_policy": "immutable-trial-version-as-of-v1",
         "candidate_limit": MAX_MATCH_RUN_CANDIDATES,
+        "candidate_pools": {
+            "lexical": LEXICAL_POOL_LIMIT,
+            "semantic": SEMANTIC_POOL_LIMIT,
+            "fusion": FUSION_POOL_LIMIT,
+            "review": MAX_MATCH_RUN_CANDIDATES,
+        },
         "candidate_generation": HYBRID_RETRIEVAL_VERSION,
         "metadata_filtering": "conservative-v1",
         "scoring": "field-weighted-lexical-v1",

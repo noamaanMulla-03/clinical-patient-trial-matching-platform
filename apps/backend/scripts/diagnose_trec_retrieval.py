@@ -47,21 +47,21 @@ def diagnose_topics(
                 "topic_id": topic_id,
                 "lexical_nDCG@10": _metric(lexical, "nDCG@10"),
                 "semantic_nDCG@10": _metric(semantic, "nDCG@10"),
-                "lexical_excluded_trial_rate_top_10": _metric(
-                    lexical, "excluded_trial_rate_top_10"
+                "lexical_trec_grade_1_rate_top_10": _metric(
+                    lexical, "trec_grade_1_rate_top_10"
                 ),
-                "semantic_excluded_trial_rate_top_10": _metric(
-                    semantic, "excluded_trial_rate_top_10"
+                "semantic_trec_grade_1_rate_top_10": _metric(
+                    semantic, "trec_grade_1_rate_top_10"
                 ),
                 "semantic_ranked_nct_ids": _identifiers(semantic),
             }
         )
     return {
         "topic_count": len(cases),
-        "highest_semantic_excluded_rate": sorted(
+        "highest_semantic_trec_grade_1_rate": sorted(
             cases,
             key=lambda case: (
-                -float(case["semantic_excluded_trial_rate_top_10"]),
+                -float(case["semantic_trec_grade_1_rate_top_10"]),
                 int(str(case["topic_id"])),
             ),
         )[:10],

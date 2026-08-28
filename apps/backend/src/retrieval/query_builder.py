@@ -34,7 +34,7 @@ def build_patient_retrieval_query(
     terms: list[RetrievalTerm] = []
     active_condition_labels: list[str] = []
     for fact in materialized_facts:
-        if fact.quality_issues:
+        if not _usable_for_broad_retrieval(fact):
             continue
         if (
             fact.kind == "condition"
@@ -64,6 +64,24 @@ def build_patient_retrieval_query(
             age_years=_documented_age(materialized_facts, as_of=as_of),
             recorded_sex=_documented_recorded_sex(materialized_facts),
         ),
+    )
+
+
+def _usable_for_broad_retrieval(fact: PatientFact) -> bool:
+    """Allow stale active conditions to support recall without treating them as fresh.
+
+    A stale chronic condition is unsuitable for a time-sensitive criterion but can
+    still be useful to find broad public-trial candidates.  Invalid, missing, and
+    conflicting facts remain unavailable everywhere in candidate generation.
+    """
+    if not fact.quality_issues:
+        return True
+    issue_codes = {issue.code for issue in fact.quality_issues}
+    return (
+        fact.kind == "condition"
+        and isinstance(fact.value, ConditionFactValue)
+        and fact.value.clinical_status == "active"
+        and issue_codes == {"stale"}
     )
 
 

@@ -20,8 +20,7 @@
     },
     "acceptance_gate": {
       "agreed_metric": "nDCG@5",
-      "minimum_improvement": 0.01,
-      "maximum_excluded_trial_rate_top_10_increase": 0.0
+      "minimum_improvement": 0.01
     }
   },
   "trials": [

@@ -1,6 +1,6 @@
 """Checks for the fixed public TREC weighted-fusion tuning protocol."""
 
-from scripts.tune_trec_hybrid import _candidate_profiles, _fuse, _passes_acceptance
+from scripts.tune_trec_hybrid import _candidate_profiles, _fuse, _selected_configuration
 
 
 def test_weighted_fusion_can_prioritize_the_semantic_rank_list() -> None:
@@ -12,21 +12,24 @@ def test_weighted_fusion_can_prioritize_the_semantic_rank_list() -> None:
     )[:2] == ["NCT00000003", "NCT00000004"]
 
 
-def test_acceptance_requires_relevance_and_low_excluded_rate() -> None:
-    assert _passes_acceptance(
-        {
-            "nDCG@10": 0.25,
-            "Precision@10": 0.25,
-            "excluded_trial_rate_top_10": 0.05,
-        }
+def test_selection_uses_tuning_metrics_not_the_heldout_report() -> None:
+    selected = _selected_configuration(
+        [
+            {
+                "semantic_weight": 1.0,
+                "tuning": {"nDCG@10": 0.2, "Precision@10": 0.2},
+                "heldout": {"nDCG@10": 0.9, "Precision@10": 0.9},
+            },
+            {
+                "semantic_weight": 1.5,
+                "tuning": {"nDCG@10": 0.3, "Precision@10": 0.1},
+                "heldout": {"nDCG@10": 0.1, "Precision@10": 0.1},
+            },
+        ]
     )
-    assert not _passes_acceptance(
-        {
-            "nDCG@10": 0.30,
-            "Precision@10": 0.30,
-            "excluded_trial_rate_top_10": 0.051,
-        }
-    )
+
+    assert selected is not None
+    assert selected["semantic_weight"] == 1.5
 
 
 def test_candidate_profiles_keep_re_ranker_as_a_separate_fixed_configuration() -> None:

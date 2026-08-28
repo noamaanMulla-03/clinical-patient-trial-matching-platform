@@ -8,6 +8,8 @@ from scripts.evaluate_trec_hybrid import (
     _fuse_ranked_lists,
     _rerank_with_structured_support,
     _result,
+    _semantic_ids,
+    _semantic_vectors,
     _trial_count,
 )
 from src.db.models import Trial
@@ -62,3 +64,26 @@ def test_fielded_evaluation_can_use_rank_only_field_fusion() -> None:
         ["NCT00000001"], ["NCT00000002"], lexical_weight=1.0, semantic_weight=4.0
     )[:1] == ["NCT00000002"]
     assert _field_weights(["conditions=2.0"])["conditions"] == 2.0
+
+
+def test_legacy_full_text_index_is_explicitly_not_field_weighted(tmp_path) -> None:
+    import numpy
+
+    index_path = tmp_path / "vectors.f32"
+    vectors = numpy.zeros((100, 768), dtype=numpy.float32)
+    vectors[0, 0] = 1.0
+    vectors[1, 1] = 1.0
+    vectors.tofile(index_path)
+    manifest = {"embedding_file": index_path.name}
+    vectors, representation = _semantic_vectors(
+        tmp_path, manifest=manifest, trial_count=100
+    )
+
+    assert representation == "legacy-combined-public-trial-text"
+    assert _semantic_ids(
+        vectors,
+        query=numpy.asarray([1.0] + [0.0] * 767, dtype=numpy.float32),
+        ids=[f"NCT{index:08d}" for index in range(100)],
+        field_weights=_field_weights([]),
+        fusion="weighted-rrf",
+    )[0] == "NCT00000000"

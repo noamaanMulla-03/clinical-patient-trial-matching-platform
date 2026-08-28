@@ -44,6 +44,12 @@ export type MatchRun = {
   candidate_limit: number;
   cancellation_requested: boolean;
   configuration_versions: Record<string, string>;
+  retrieval_execution?: {
+    mode?: string;
+    degradation_reasons?: string[];
+    counts?: Record<string, number>;
+    semantic_coverage?: { current_trials: number; embedded_trials: number };
+  };
   created_at: string;
   started_at?: string | null;
   completed_at?: string | null;

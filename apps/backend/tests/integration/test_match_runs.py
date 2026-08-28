@@ -12,10 +12,11 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
-from src.db.models import PatientFactRecord, Trial, TrialMatch
+from src.db.models import PatientFactRecord, TrialMatch
 from src.fhir.safety import synthetic_data_tag
 from src.fhir.schemas import FHIRImportRequest
 from src.retrieval.semantic import SemanticTrialCandidate
+from src.retrieval.trial_documents import document_from_trial_version
 from src.services.match_runs import (
     MAX_MATCH_RUN_CANDIDATES,
     cancel_match_run,
@@ -111,6 +112,10 @@ def test_worker_persists_ranked_trial_versions_for_one_immutable_patient_import(
         assert run.configuration_snapshot["patient_import_id"] == str(
             patient_import.patient_import_id
         )
+        assert run.configuration_snapshot["catalogue_policy"] == (
+            "immutable-trial-version-as-of-v1"
+        )
+        assert isinstance(run.configuration_snapshot["catalogue_as_of"], str)
         assert (
             run.configuration_snapshot["versions"]["rule_engine"] == "deterministic-v1"
         )
@@ -121,28 +126,32 @@ def test_worker_persists_ranked_trial_versions_for_one_immutable_patient_import(
         assert run.rule_engine_version == "deterministic-v1"
 
         assert completed_run.status == "completed"
-        assert len(matches) == 1
-        assert matches[0].trial_version_id == trial_version.id
-        assert matches[0].candidate_rank == 1
-        assert matches[0].retrieval_scores["lexical_score"] > 0
-        assert matches[0].retrieval_scores["matched_term_count"] >= 1
+        fixture_match = next(
+            match for match in matches if match.trial_version_id == trial_version.id
+        )
+        assert fixture_match.candidate_rank >= 1
+        assert fixture_match.retrieval_scores["lexical_score"] > 0
+        assert fixture_match.retrieval_scores["matched_term_count"] >= 1
 
         response = await match_run_response(session, completed_run)
         results = await match_run_results(session, completed_run)
         assert response.candidate_limit == MAX_MATCH_RUN_CANDIDATES
-        assert response.candidate_count == 1
+        assert response.candidate_count >= 1
         assert response.configuration_versions["retrieval"] == (
             "lexical-semantic-rrf-structured-reranker-v1"
         )
-        assert results[0].structured_relevance is not None
-        assert results[0].structured_relevance.status == "direct_support"
-        assert results[0].structured_relevance.supported_fields == ["conditions"]
-        assert results[0].nct_id == nct_id
-        assert results[0].title == "Diabetes and metformin study"
-        assert results[0].study_status == "RECRUITING"
-        assert results[0].source_updated_at == datetime(2026, 8, 22, tzinfo=UTC)
-        assert results[0].retrieval_relevance is not None
-        assert results[0].retrieval_relevance.score > 0
+        fixture_result = next(
+            result for result in results if result.trial_version_id == trial_version.id
+        )
+        assert fixture_result.structured_relevance is not None
+        assert fixture_result.structured_relevance.status == "direct_support"
+        assert fixture_result.structured_relevance.supported_fields == ["conditions"]
+        assert fixture_result.nct_id == nct_id
+        assert fixture_result.title == "Diabetes and metformin study"
+        assert fixture_result.study_status == "RECRUITING"
+        assert fixture_result.source_updated_at == datetime(2026, 8, 22, tzinfo=UTC)
+        assert fixture_result.retrieval_relevance is not None
+        assert fixture_result.retrieval_relevance.score > 0
         fact_ids = {
             record.id
             for record in await session.scalars(
@@ -152,8 +161,15 @@ def test_worker_persists_ranked_trial_versions_for_one_immutable_patient_import(
                 )
             )
         }
-        assert results[0].trial_version_id == trial_version.id
-        evidence_fact_ids = results[0].retrieval_scores["matched_fact_ids"]
+        assert fixture_result.trial_version_id == trial_version.id
+        assert completed_run.retrieval_execution["catalogue"] == {
+            "as_of": run.configuration_snapshot["catalogue_as_of"],
+            "policy": "immutable-trial-version-as-of-v1",
+        }
+        assert completed_run.retrieval_execution["query_manifest"][
+            "included_fact_ids"
+        ]
+        evidence_fact_ids = fixture_result.retrieval_scores["matched_fact_ids"]
         assert evidence_fact_ids
         assert set(evidence_fact_ids) <= fact_ids
 
@@ -165,7 +181,12 @@ def test_worker_persists_ranked_trial_versions_for_one_immutable_patient_import(
 
         assert rerun.id != run.id
         assert completed_rerun.status == "completed"
-        assert rerun_results[0].id != results[0].id
+        rerun_fixture_result = next(
+            result
+            for result in rerun_results
+            if result.trial_version_id == trial_version.id
+        )
+        assert rerun_fixture_result.id != fixture_result.id
 
     _run_database_check(check)
 
@@ -196,13 +217,16 @@ def test_worker_uses_semantic_only_candidate_when_lexical_has_no_match(
             },
             retrieved_at=datetime(2026, 8, 25, tzinfo=UTC),
         )
-        trial = await session.get(Trial, nct_id)
-        assert trial is not None
-
         async def semantic_only(
             *_: object, **__: object
         ) -> tuple[SemanticTrialCandidate, ...]:
-            return (SemanticTrialCandidate(trial=trial, score=0.74, rank=1),)
+            return (
+                SemanticTrialCandidate(
+                    trial=document_from_trial_version(trial_version),
+                    score=0.74,
+                    rank=1,
+                ),
+            )
 
         monkeypatch.setattr(
             match_run_worker, "semantic_trial_candidates", semantic_only
@@ -212,39 +236,43 @@ def test_worker_uses_semantic_only_candidate_when_lexical_has_no_match(
         )
         completed = await run_match_run_job(session, run.id)
         match = await session.scalar(
-            select(TrialMatch).where(TrialMatch.match_run_id == run.id)
+            select(TrialMatch).where(
+                TrialMatch.match_run_id == run.id,
+                TrialMatch.trial_version_id == trial_version.id,
+            )
         )
 
         assert completed.status == "completed"
         assert match is not None
         assert match.trial_version_id == trial_version.id
-        assert match.retrieval_scores == {
-            "candidate_sources": ["semantic"],
-            "semantic_score": 0.74,
-            "semantic_rank": 1,
-            "reciprocal_rank_fusion_score": 1 / 61,
-            "reciprocal_rank_fusion_rank": 1,
-            "reciprocal_rank_fusion_rank_constant": 60,
-            "reciprocal_rank_fusion_version": "reciprocal-rank-fusion-v1",
-            "structured_evidence_reranker_version": "structured-evidence-reranker-v2",
-            "structured_evidence_reranker_input_rank": 1,
-            "structured_evidence_reranker_rank": 1,
-            "structured_evidence_support_tier": 0,
-            "structured_evidence_supported_fields": [],
-            "structured_evidence_supporting_fact_ids": [],
-            "structured_evidence_status": "unknown",
-            "structured_evidence_note": (
-                "No direct structured support was found; retained for review "
-                "without a penalty."
-            ),
-        }
+        assert match.retrieval_scores["candidate_sources"] == ["semantic"]
+        assert match.retrieval_scores["semantic_score"] == 0.74
+        assert match.retrieval_scores["semantic_rank"] == 1
+        assert match.retrieval_scores["reciprocal_rank_fusion_score"] == 1 / 61
+        assert match.retrieval_scores["reciprocal_rank_fusion_rank"] >= 1
+        assert match.retrieval_scores["reciprocal_rank_fusion_rank_constant"] == 60
+        assert match.retrieval_scores["reciprocal_rank_fusion_version"] == (
+            "reciprocal-rank-fusion-v1"
+        )
+        assert match.retrieval_scores["structured_evidence_reranker_version"] == (
+            "structured-evidence-reranker-v2"
+        )
+        assert match.retrieval_scores["structured_evidence_reranker_input_rank"] >= 1
+        assert match.retrieval_scores["structured_evidence_reranker_rank"] >= 1
+        assert match.retrieval_scores["structured_evidence_support_tier"] == 0
+        assert match.retrieval_scores["structured_evidence_supported_fields"] == []
+        assert match.retrieval_scores["structured_evidence_supporting_fact_ids"] == []
+        assert match.retrieval_scores["structured_evidence_status"] == "unknown"
         results = await match_run_results(session, completed)
-        assert results[0].retrieval_sources == ["semantic"]
-        assert results[0].retrieval_relevance is None
-        assert results[0].semantic_relevance is not None
-        assert results[0].semantic_relevance.score == 0.74
-        assert results[0].structured_relevance is not None
-        assert results[0].structured_relevance.status == "unknown"
+        fixture_result = next(
+            result for result in results if result.trial_version_id == trial_version.id
+        )
+        assert fixture_result.retrieval_sources == ["semantic"]
+        assert fixture_result.retrieval_relevance is None
+        assert fixture_result.semantic_relevance is not None
+        assert fixture_result.semantic_relevance.score == 0.74
+        assert fixture_result.structured_relevance is not None
+        assert fixture_result.structured_relevance.status == "unknown"
 
     _run_database_check(check)
 

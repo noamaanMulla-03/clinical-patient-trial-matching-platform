@@ -4,15 +4,14 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import cast
 
 from src.evaluation.metrics import (
-    excluded_rate_at_k,
     mean,
     ndcg_at_k,
     precision_at_k,
     recall_at_k,
     reciprocal_rank,
+    trec_grade_1_rate_at_k,
 )
 from src.retrieval.fusion import RECIPROCAL_RANK_FUSION_RANK_CONSTANT
 
@@ -20,11 +19,6 @@ _SEMANTIC_WEIGHT_CANDIDATES = (0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 4.0, 8.0)
 _CANDIDATE_LIMIT = 100
 _TUNING_TOPIC_IDS = frozenset(str(value) for value in range(1, 51, 2))
 _HELD_OUT_TOPIC_IDS = frozenset(str(value) for value in range(2, 51, 2))
-_ACCEPTANCE = {
-    "minimum_nDCG@10": 0.25,
-    "minimum_Precision@10": 0.25,
-    "maximum_excluded_trial_rate_top_10": 0.05,
-}
 
 
 def main() -> int:
@@ -76,11 +70,7 @@ def main() -> int:
             }
         )
 
-    accepted = [
-        configuration
-        for configuration in configurations
-        if _passes_acceptance(cast(dict[str, float], configuration["heldout"]))
-    ]
+    selected = _selected_configuration(configurations)
     output = {
         "evaluation": "trec-2022-weighted-hybrid-tuning",
         "claimable": False,
@@ -96,7 +86,11 @@ def main() -> int:
             "tuning_topic_ids": sorted(_TUNING_TOPIC_IDS, key=int),
             "heldout_topic_ids": sorted(_HELD_OUT_TOPIC_IDS, key=int),
         },
-        "acceptance": _ACCEPTANCE | {"passed_configurations": len(accepted)},
+        "selection_protocol": {
+            "selected_on": "tuning_topic_ids_only",
+            "heldout_role": "reporting_only; not used for configuration selection",
+            "clinical_release_gate": "not-supported-by-trec-grade-composition",
+        },
         "candidate_profiles": _candidate_profiles(
             qrels=qrels,
             lexical_ranks=lexical_ranks,
@@ -105,7 +99,7 @@ def main() -> int:
             reranked_ranks=reranked_ranks,
         ),
         "configurations": configurations,
-        "selected_configuration": _selected_configuration(accepted),
+        "selected_configuration": selected,
     }
     output_path = base / "results/2022-weighted-hybrid-tuning.json"
     output_path.write_text(json.dumps(output, indent=2, sort_keys=True) + "\n")
@@ -216,7 +210,7 @@ def _metrics_for_topics(
         "Precision@10",
         "Recall@50",
         "MRR",
-        "excluded_trial_rate_top_10",
+        "trec_grade_1_rate_top_10",
     )
     return {name: mean(float(result[name]) for result in results) for name in names}
 
@@ -232,29 +226,20 @@ def _topic_metrics(ranked: list[str], judgments: dict[str, int]) -> dict[str, fl
         "Precision@10": precision_at_k(grades, k=10),
         "Recall@50": recall_at_k(grades, total_relevant=relevant, k=50),
         "MRR": reciprocal_rank(grades),
-        "excluded_trial_rate_top_10": excluded_rate_at_k(grades, k=10),
+        "trec_grade_1_rate_top_10": trec_grade_1_rate_at_k(grades, k=10),
     }
 
 
-def _passes_acceptance(metrics: dict[str, float]) -> bool:
-    return (
-        metrics["nDCG@10"] >= _ACCEPTANCE["minimum_nDCG@10"]
-        and metrics["Precision@10"] >= _ACCEPTANCE["minimum_Precision@10"]
-        and metrics["excluded_trial_rate_top_10"]
-        <= _ACCEPTANCE["maximum_excluded_trial_rate_top_10"]
-    )
-
-
 def _selected_configuration(
-    accepted: list[dict[str, object]],
+    configurations: list[dict[str, object]],
 ) -> dict[str, object] | None:
-    if not accepted:
+    if not configurations:
         return None
     return max(
-        accepted,
+        configurations,
         key=lambda configuration: (
-            float(configuration["heldout"]["nDCG@10"]),  # type: ignore[index]
-            float(configuration["heldout"]["Precision@10"]),  # type: ignore[index]
+            float(configuration["tuning"]["nDCG@10"]),  # type: ignore[index]
+            float(configuration["tuning"]["Precision@10"]),  # type: ignore[index]
         ),
     )
 

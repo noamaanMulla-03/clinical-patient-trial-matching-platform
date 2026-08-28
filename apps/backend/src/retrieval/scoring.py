@@ -5,8 +5,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
-from src.db.models import Trial
 from src.retrieval.schemas import PatientDerivedRetrievalQuery
+from src.retrieval.trial_documents import SearchableTrial
 
 _FIELD_WEIGHTS = {
     "conditions": 4.0,
@@ -17,7 +17,7 @@ _FIELD_WEIGHTS = {
 
 
 def score_trial_candidate(
-    trial: Trial, query: PatientDerivedRetrievalQuery
+    trial: SearchableTrial, query: PatientDerivedRetrievalQuery
 ) -> dict[str, Any] | None:
     """Score a lexical candidate and retain only explainable, deterministic counts."""
     normalized_fields = _normalized_trial_fields(trial)
@@ -53,8 +53,8 @@ def score_trial_candidate(
 
 
 def rank_scored_trials(
-    scored_trials: Iterable[tuple[Trial, dict[str, Any]]],
-) -> list[tuple[Trial, dict[str, Any]]]:
+    scored_trials: Iterable[tuple[SearchableTrial, dict[str, Any]]],
+) -> list[tuple[SearchableTrial, dict[str, Any]]]:
     """Rank deterministically so reruns are reproducible for the same snapshots."""
     return sorted(
         scored_trials,
@@ -62,7 +62,7 @@ def rank_scored_trials(
     )
 
 
-def _normalized_trial_fields(trial: Trial) -> dict[str, str]:
+def _normalized_trial_fields(trial: SearchableTrial) -> dict[str, str]:
     return {
         "title": _normalize(trial.title or ""),
         "conditions": _normalize_values(trial.conditions),

@@ -6,8 +6,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from src.db.models import Trial
 from src.retrieval.semantic import SemanticTrialCandidate
+from src.retrieval.trial_documents import SearchableTrial
 
 RECIPROCAL_RANK_FUSION_VERSION = "reciprocal-rank-fusion-v1"
 RECIPROCAL_RANK_FUSION_RANK_CONSTANT = 60
@@ -15,18 +15,18 @@ RECIPROCAL_RANK_FUSION_RANK_CONSTANT = 60
 
 @dataclass(slots=True)
 class _FusedCandidate:
-    trial: Trial
+    trial: SearchableTrial
     scores: dict[str, Any]
     lexical_rank: int | None = None
     semantic_rank: int | None = None
 
 
 def fuse_ranked_trial_candidates(
-    ranked_lexical_trials: Sequence[tuple[Trial, dict[str, Any]]],
+    ranked_lexical_trials: Sequence[tuple[SearchableTrial, dict[str, Any]]],
     semantic_candidates: Sequence[SemanticTrialCandidate],
     *,
     candidate_limit: int,
-) -> list[tuple[Trial, dict[str, Any]]]:
+) -> list[tuple[SearchableTrial, dict[str, Any]]]:
     """Fuse two bounded retrieval rankings without changing review outcomes.
 
     Reciprocal rank fusion compares rank positions rather than mixing the
@@ -88,7 +88,7 @@ def fuse_ranked_trial_candidates(
 
 
 def _candidate_for(
-    candidates: dict[str, _FusedCandidate], trial: Trial
+    candidates: dict[str, _FusedCandidate], trial: SearchableTrial
 ) -> _FusedCandidate:
     if candidate := candidates.get(trial.nct_id):
         return candidate

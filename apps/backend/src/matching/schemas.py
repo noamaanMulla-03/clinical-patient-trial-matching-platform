@@ -20,6 +20,49 @@ _RETRIEVAL_FIELDS: tuple[RetrievalField, ...] = (
 )
 
 
+def _review_safe_retrieval_execution(value: object) -> dict[str, Any]:
+    """Project run metadata without exposing patient-fact identifiers.
+
+    The stored manifest remains available for controlled audit and replay.  The
+    reviewer status API deliberately exposes aggregate counts only, because the
+    UI does not need internal fact identifiers to explain a retrieval run.
+    """
+    if not isinstance(value, Mapping):
+        return {}
+
+    response: dict[str, Any] = {}
+    for key in (
+        "mode",
+        "degradation_reasons",
+        "query_manifest_hash",
+        "counts",
+        "semantic_coverage",
+        "catalogue",
+    ):
+        item = value.get(key)
+        if item is not None:
+            response[key] = item
+
+    manifest = value.get("query_manifest")
+    if isinstance(manifest, Mapping):
+        included_fact_ids = manifest.get("included_fact_ids")
+        omitted_fact_ids = manifest.get("omitted_fact_ids")
+        response["query_summary"] = {
+            "included_fact_count": (
+                len(included_fact_ids) if isinstance(included_fact_ids, list) else 0
+            ),
+            "omitted_fact_count": (
+                len(omitted_fact_ids) if isinstance(omitted_fact_ids, list) else 0
+            ),
+            "term_kinds": (
+                manifest["term_kinds"]
+                if isinstance(manifest.get("term_kinds"), list)
+                else []
+            ),
+        }
+    return response
+
+
 class MatchRunCreateRequest(BaseModel):
     """Select one completed synthetic patient import for candidate retrieval."""
 
@@ -46,6 +89,7 @@ class MatchRunResponse(BaseModel):
     configuration_versions: dict[str, str]
     created_at: datetime
     candidate_limit: int = Field(gt=0)
+    retrieval_execution: dict[str, Any] = Field(default_factory=dict)
     started_at: datetime | None = None
     failure: MatchRunFailureResponse | None = None
     completed_at: datetime | None = None
@@ -72,6 +116,9 @@ class MatchRunResponse(BaseModel):
             candidate_count=candidate_count,
             cancellation_requested=cancellation_requested,
             candidate_limit=candidate_limit,
+            retrieval_execution=_review_safe_retrieval_execution(
+                run.retrieval_execution
+            ),
             configuration_versions={
                 "parser": run.parser_version,
                 "retrieval": run.retrieval_version,

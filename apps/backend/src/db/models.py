@@ -409,6 +409,9 @@ class MatchRun(Base):
     configuration_snapshot: Mapped[dict[str, Any]] = mapped_column(
         JSONB, nullable=False
     )
+    retrieval_execution: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, server_default="{}"
+    )
     parser_version: Mapped[str] = mapped_column(String(128), nullable=False)
     retrieval_version: Mapped[str] = mapped_column(String(128), nullable=False)
     rule_engine_version: Mapped[str] = mapped_column(String(128), nullable=False)

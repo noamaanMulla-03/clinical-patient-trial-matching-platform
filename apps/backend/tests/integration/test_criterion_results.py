@@ -175,6 +175,7 @@ def test_results_require_snapshot_evidence_and_aggregate_to_a_bounded_outcome() 
         assert listed_candidates[0].criterion_results[0].source_text == "Adults"
         assert listed_candidates[0].criterion_results[0].outcome == "met"
         assert listed_candidates[0].criterion_results[0].current_outcome == "unknown"
+        assert listed_candidates[0].outcome == "needs_review"
         with pytest.raises(CriterionDetailError, match="different criterion outcome"):
             await append_reviewer_correction(
                 session,

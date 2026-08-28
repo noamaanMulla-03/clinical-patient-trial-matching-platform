@@ -1,5 +1,7 @@
 """Deterministic lexical scoring checks for ranked trial candidates."""
 
+from datetime import UTC, datetime
+
 import pytest
 
 from src.db.models import Trial
@@ -92,7 +94,9 @@ def test_ranking_is_deterministic_and_empty_queries_do_not_scan_trials() -> None
         "NCT00000002",
     ]
     empty_statement = lexical_trial_candidates_statement(
-        PatientDerivedRetrievalQuery(), candidate_limit=10
+        PatientDerivedRetrievalQuery(),
+        candidate_limit=10,
+        catalogue_as_of=datetime(2026, 8, 28, tzinfo=UTC),
     )
     assert "false" in str(empty_statement.compile()).lower()
 
@@ -105,12 +109,22 @@ def test_lexical_candidate_selection_is_deterministically_capped() -> None:
             )
         ]
     )
-    statement = lexical_trial_candidates_statement(query, candidate_limit=2)
+    statement = lexical_trial_candidates_statement(
+        query,
+        candidate_limit=2,
+        catalogue_as_of=datetime(2026, 8, 28, tzinfo=UTC),
+    )
     compiled = statement.compile()
 
-    assert "order by trials.nct_id" in str(compiled).lower()
+    rendered = str(compiled).lower()
+    assert "ts_rank_cd" in rendered
+    assert "trial_versions.raw_study" in rendered
+    assert "trial_versions.ingested_at" in rendered
+    assert "desc, trial_versions.nct_id" in rendered
     assert 2 in compiled.params.values()
     with pytest.raises(ValueError, match="candidate_limit must be positive"):
         lexical_trial_candidates_statement(
-            PatientDerivedRetrievalQuery(), candidate_limit=0
+            PatientDerivedRetrievalQuery(),
+            candidate_limit=0,
+            catalogue_as_of=datetime(2026, 8, 28, tzinfo=UTC),
         )

@@ -38,14 +38,14 @@ def test_heldout_comparison_uses_production_rrf_and_reports_metric_delta(
     assert report["acceptance"] == {
         "benchmark_kind": "synthetic_regression",
         "claimable": False,
+        "release_gate": "not-supported-by-trec-grade-1-composition",
         "agreed_metric": "nDCG@5",
         "minimum_improvement": 0.01,
         "observed_improvement": pytest.approx(
             report["delta_hybrid_minus_lexical"]["nDCG@5"]
         ),
-        "maximum_excluded_trial_rate_top_10_increase": 0.0,
-        "observed_excluded_trial_rate_top_10_increase": pytest.approx(
-            report["delta_hybrid_minus_lexical"]["excluded_trial_rate_top_10"]
+        "trec_grade_1_rate_top_10_delta": pytest.approx(
+            report["delta_hybrid_minus_lexical"]["trec_grade_1_rate_top_10"]
         ),
         "passed": False,
     }
@@ -100,7 +100,6 @@ def _dataset_payload() -> dict[str, object]:
             "acceptance_gate": {
                 "agreed_metric": "nDCG@5",
                 "minimum_improvement": 0.01,
-                "maximum_excluded_trial_rate_top_10_increase": 0.0,
             },
         },
         "trials": [

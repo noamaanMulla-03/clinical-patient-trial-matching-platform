@@ -19,7 +19,6 @@ from src.criteria.parser_config import ELIGIBILITY_PARSER_CONFIGURATION
 from src.criteria.schemas import AtomicCriterion
 from src.db.models import Trial
 from src.evaluation.metrics import (
-    excluded_rate_at_k,
     label_recall,
     macro_f1,
     mean,
@@ -28,6 +27,7 @@ from src.evaluation.metrics import (
     precision_at_k,
     recall_at_k,
     reciprocal_rank,
+    trec_grade_1_rate_at_k,
 )
 from src.fhir.schemas import PatientFact
 from src.retrieval.fusion import (
@@ -131,7 +131,9 @@ def evaluate_retrieval_dataset(path: Path) -> dict[str, Any]:
                     relevances, total_relevant=eligible_count, k=50
                 ),
                 "MRR": reciprocal_rank(relevances),
-                "excluded_trial_rate_top_10": excluded_rate_at_k(relevances, k=10),
+                "trec_grade_1_rate_top_10": trec_grade_1_rate_at_k(
+                    relevances, k=10
+                ),
             }
         )
 
@@ -149,7 +151,7 @@ def evaluate_retrieval_dataset(path: Path) -> dict[str, Any]:
                 "Precision@10",
                 "Recall@50",
                 "MRR",
-                "excluded_trial_rate_top_10",
+                "trec_grade_1_rate_top_10",
             )
         }
         | {"mean_latency_ms": mean(result["latency_ms"] for result in topic_results)},
@@ -641,17 +643,6 @@ def _held_out_comparison_configuration(payload: dict[str, Any]) -> dict[str, Any
         raise EvaluationDatasetError(
             "Held-out acceptance_gate minimum_improvement must be positive."
         )
-    maximum_excluded_increase = acceptance.get(
-        "maximum_excluded_trial_rate_top_10_increase"
-    )
-    if (
-        not isinstance(maximum_excluded_increase, (int, float))
-        or isinstance(maximum_excluded_increase, bool)
-        or maximum_excluded_increase < 0
-    ):
-        raise EvaluationDatasetError(
-            "Held-out acceptance_gate excluded-trial increase must be non-negative."
-        )
     return configuration
 
 
@@ -661,34 +652,26 @@ def _held_out_acceptance(
     lexical_metrics: dict[str, float],
     hybrid_metrics: dict[str, float],
 ) -> dict[str, float | str | bool]:
-    """Report the explicit safety gate without promoting synthetic regression data."""
+    """Report relevance change and TREC grade composition without a safety claim."""
     acceptance = cast(dict[str, Any], configuration["acceptance_gate"])
     agreed_metric = cast(str, acceptance["agreed_metric"])
     minimum_improvement = float(acceptance["minimum_improvement"])
-    maximum_excluded_increase = float(
-        acceptance["maximum_excluded_trial_rate_top_10_increase"]
-    )
     observed_improvement = (
         hybrid_metrics[agreed_metric] - lexical_metrics[agreed_metric]
     )
-    excluded_rate_increase = (
-        hybrid_metrics["excluded_trial_rate_top_10"]
-        - lexical_metrics["excluded_trial_rate_top_10"]
+    grade_1_rate_delta = (
+        hybrid_metrics["trec_grade_1_rate_top_10"]
+        - lexical_metrics["trec_grade_1_rate_top_10"]
     )
-    is_claimable = configuration["benchmark"]["kind"] == "trec_clinical_trials"
     return {
         "benchmark_kind": cast(str, configuration["benchmark"]["kind"]),
-        "claimable": is_claimable,
+        "claimable": False,
+        "release_gate": "not-supported-by-trec-grade-1-composition",
         "agreed_metric": agreed_metric,
         "minimum_improvement": minimum_improvement,
         "observed_improvement": observed_improvement,
-        "maximum_excluded_trial_rate_top_10_increase": maximum_excluded_increase,
-        "observed_excluded_trial_rate_top_10_increase": excluded_rate_increase,
-        "passed": (
-            is_claimable
-            and observed_improvement >= minimum_improvement
-            and excluded_rate_increase <= maximum_excluded_increase
-        ),
+        "trec_grade_1_rate_top_10_delta": grade_1_rate_delta,
+        "passed": False,
     }
 
 
@@ -741,7 +724,7 @@ def _retrieval_topic_result(
         "Precision@10": precision_at_k(relevances, k=10),
         "Recall@50": recall_at_k(relevances, total_relevant=eligible_count, k=50),
         "MRR": reciprocal_rank(relevances),
-        "excluded_trial_rate_top_10": excluded_rate_at_k(relevances, k=10),
+        "trec_grade_1_rate_top_10": trec_grade_1_rate_at_k(relevances, k=10),
     }
 
 
@@ -755,7 +738,7 @@ def _mean_retrieval_metrics(topic_results: list[dict[str, Any]]) -> dict[str, fl
             "Precision@10",
             "Recall@50",
             "MRR",
-            "excluded_trial_rate_top_10",
+            "trec_grade_1_rate_top_10",
         )
     }
     metrics["mean_latency_ms"] = mean(

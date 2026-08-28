@@ -103,7 +103,7 @@ def test_patient_query_uses_only_active_documented_facts_and_exact_demographics(
     }
 
 
-def test_uncertain_patient_information_is_omitted_instead_of_becoming_a_filter() -> (
+def test_stale_active_conditions_support_retrieval_without_becoming_a_filter() -> (
     None
 ):
     query = build_patient_retrieval_query(
@@ -143,13 +143,13 @@ def test_uncertain_patient_information_is_omitted_instead_of_becoming_a_filter()
         as_of=date(2026, 8, 23),
     )
 
-    assert query.terms == []
-    assert query.filters.conditions == []
+    assert [term.source_fact_id for term in query.terms] == ["stale-condition"]
+    assert query.filters.conditions == ["Diabetes mellitus"]
     assert query.filters.age_years is None
     assert query.filters.recorded_sex is None
 
 
-def test_metadata_filters_reject_only_documented_patient_mismatches() -> None:
+def test_metadata_filters_do_not_turn_patient_facts_into_eligibility_gates() -> None:
     metadata = TrialSearchMetadata(
         conditions=["Diabetes mellitus"],
         minimum_age="18 Years",
@@ -171,11 +171,16 @@ def test_metadata_filters_reject_only_documented_patient_mismatches() -> None:
     )
 
     assert trial_matches_metadata(metadata, filters)
-    assert not trial_matches_metadata(
+    assert trial_matches_metadata(
         metadata, filters.model_copy(update={"age_years": 71})
     )
-    assert not trial_matches_metadata(
+    # Condition text is candidate-generation evidence, not a brittle exact-label
+    # eligibility gate. Synonyms and hierarchy variants remain reviewable.
+    assert trial_matches_metadata(
         metadata, filters.model_copy(update={"conditions": ["melanoma"]})
+    )
+    assert trial_matches_metadata(
+        metadata, filters.model_copy(update={"recorded_sex": "male"})
     )
     assert not trial_matches_metadata(
         metadata, filters.model_copy(update={"study_statuses": ["completed"]})

@@ -2,17 +2,14 @@
 
 from __future__ import annotations
 
-import re
 from typing import Any
 
-from src.db.models import Trial
 from src.retrieval.schemas import TrialMetadataFilters, TrialSearchMetadata
+from src.retrieval.trial_documents import SearchableTrial
 
-_TRIAL_AGE_PATTERN = re.compile(r"^(?P<years>\d+) Years?$")
 
-
-def metadata_from_trial(trial: Trial) -> TrialSearchMetadata:
-    """Project only fields used by metadata filtering from one current trial."""
+def metadata_from_trial(trial: SearchableTrial) -> TrialSearchMetadata:
+    """Project only fields used by metadata filtering from one source version."""
     interventions = [
         intervention
         for intervention in trial.interventions
@@ -37,37 +34,10 @@ def trial_matches_metadata(
     """Reject documented incompatibilities; keep missing trial metadata reviewable.
 
     Status, phase, country, and intervention type are caller-selected operational
-    filters, so they remain strict. Patient-derived condition, age, and sex filters
-    only rule out a trial when that trial documents an incompatible value.
+    filters, so they remain strict. Patient-derived facts are broad-recall signals,
+    not eligibility gates; criterion evaluation assesses those semantics later.
     """
-    if _documented_patient_mismatch(metadata, filters):
-        return False
     return _requested_trial_metadata_matches(metadata, filters)
-
-
-def _documented_patient_mismatch(
-    metadata: TrialSearchMetadata, filters: TrialMetadataFilters
-) -> bool:
-    if (
-        filters.conditions
-        and metadata.conditions
-        and not _intersects(filters.conditions, metadata.conditions)
-    ):
-        return True
-    if filters.age_years is not None:
-        if (
-            minimum := _parse_years(metadata.minimum_age)
-        ) is not None and filters.age_years < minimum:
-            return True
-        if (
-            maximum := _parse_years(metadata.maximum_age)
-        ) is not None and filters.age_years > maximum:
-            return True
-    if filters.recorded_sex is not None and metadata.sex:
-        trial_sex = metadata.sex.strip().lower()
-        if trial_sex in {"male", "female"} and trial_sex != filters.recorded_sex:
-            return True
-    return False
 
 
 def _requested_trial_metadata_matches(
@@ -84,12 +54,6 @@ def _requested_trial_metadata_matches(
     return not filters.intervention_types or _intersects(
         filters.intervention_types, metadata.intervention_types
     )
-
-
-def _parse_years(value: str | None) -> int | None:
-    if value is None or (match := _TRIAL_AGE_PATTERN.fullmatch(value.strip())) is None:
-        return None
-    return int(match["years"])
 
 
 def _contains(values: list[str], value: str | None) -> bool:

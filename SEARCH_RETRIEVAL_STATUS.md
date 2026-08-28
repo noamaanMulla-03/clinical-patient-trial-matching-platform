@@ -4,6 +4,13 @@
 
 This document explains the current trial-search work in the Clinical Patient Trial Matching Platform for a reader who has no prior project context. It describes what the system does, why the search quality is not yet acceptable, every retrieval-related solution implemented so far, the measured results, and what is still required before making any performance claim.
 
+> **Important correction, 28 August 2026:** historical reports label a metric as
+> `excluded_trial_rate_top_10`. Its implementation counts TREC grade-1 results,
+> not grade-0 or all irrelevant results. It is therefore a limited benchmark
+> composition measure, not an unsuitable-trial rate or a clinical-safety metric.
+> References below to an “unsuitable” rate and the former 5% gate are retained
+> only to explain the historical experiment and must not be used as release gates.
+
 This is a research-only system. It accepts synthetic FHIR R4 patient bundles and retrieves public ClinicalTrials.gov records as **review candidates**. A result is never an eligibility, treatment, enrollment, outreach, or clinical decision. The later criterion-review stage remains responsible for checking source-linked evidence and preserving uncertainty.
 
 ## Executive summary

@@ -44,8 +44,8 @@ def reciprocal_rank(relevances: Sequence[int]) -> float:
     return 0.0
 
 
-def excluded_rate_at_k(relevances: Sequence[int], *, k: int) -> float:
-    """Measure TREC judgment 1 among the results actually returned up to k."""
+def trec_grade_1_rate_at_k(relevances: Sequence[int], *, k: int) -> float:
+    """Measure TREC grade 1, not a clinical exclusion or safety rate."""
     top_k = relevances[:k]
     return sum(relevance == 1 for relevance in top_k) / len(top_k) if top_k else 0.0
 

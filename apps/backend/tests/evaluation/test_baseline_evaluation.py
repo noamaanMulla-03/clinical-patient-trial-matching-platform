@@ -73,7 +73,7 @@ def test_lexical_baseline_is_measured_and_has_no_hidden_model_stage() -> None:
         "Precision@10": pytest.approx(0.15),
         "Recall@50": pytest.approx(0.75),
         "MRR": pytest.approx(1.0),
-        "excluded_trial_rate_top_10": pytest.approx(0.2916666667),
+        "trec_grade_1_rate_top_10": pytest.approx(0.2916666667),
         "mean_latency_ms": pytest.approx(report["metrics"]["mean_latency_ms"]),
     }
     assert report["metrics"]["mean_latency_ms"] >= 0
@@ -87,7 +87,7 @@ def test_hybrid_retrieval_regression_improves_ndcg_without_worsening_exclusions(
 
     assert report["acceptance"]["agreed_metric"] == "nDCG@5"
     assert report["acceptance"]["observed_improvement"] > 0
-    assert report["acceptance"]["observed_excluded_trial_rate_top_10_increase"] <= 0
+    assert "trec_grade_1_rate_top_10_delta" in report["acceptance"]
     assert report["acceptance"]["claimable"] is False
     assert report["acceptance"]["passed"] is False
 

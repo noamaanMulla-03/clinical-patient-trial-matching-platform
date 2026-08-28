@@ -13,12 +13,12 @@ import numpy
 
 from src.db.models import Trial
 from src.evaluation.metrics import (
-    excluded_rate_at_k,
     mean,
     ndcg_at_k,
     precision_at_k,
     recall_at_k,
     reciprocal_rank,
+    trec_grade_1_rate_at_k,
 )
 from src.evaluation.trec import evaluate_trec_lexical_baseline, tokenize_trec_text
 from src.retrieval.embedding_encoder import configured_embedding_encoder
@@ -132,7 +132,7 @@ def main() -> int:
             "The index identifiers do not match the completed vector count."
         )
     available_ids = set(ids)
-    vectors = _fielded_vectors(
+    vectors, semantic_representation = _semantic_vectors(
         semantic_dir, manifest=manifest, trial_count=trial_count
     )
     topics = _topics(base / "raw/topics-2022.xml")
@@ -214,6 +214,7 @@ def main() -> int:
         "trial_count": trial_count,
         "document_profile": args.document_profile
         or manifest.get("document_profile", "legacy-unknown"),
+        "semantic_representation": semantic_representation,
         "field_weights": field_weights,
         "fusion_configuration": {
             "semantic_field_fusion": args.semantic_field_fusion,
@@ -272,30 +273,52 @@ def _required_text(payload: dict[str, object], field: str) -> str:
     return value
 
 
-def _fielded_vectors(
+def _semantic_vectors(
     semantic_dir: Path, *, manifest: dict[str, object], trial_count: int
-) -> dict[str, numpy.memmap]:
-    """Open each separately embedded public-trial field with a fixed contract."""
+) -> tuple[dict[str, numpy.memmap], str]:
+    """Open a completed public-trial index without silently changing its format.
+
+    The retained full-corpus index predates fielded retrieval and contains one
+    combined public-trial representation.  It is still useful for a clearly
+    labelled full-text semantic comparison because the model and corpus match.
+    Field weights and field-level fusion apply only when the manifest declares
+    separately embedded fields.
+    """
     files = manifest.get("embedding_files")
-    if not isinstance(files, dict):
+    if isinstance(files, dict):
+        vectors: dict[str, numpy.memmap] = {}
+        for field_name in _FIELD_WEIGHTS:
+            entry = files.get(field_name)
+            if not isinstance(entry, dict):
+                raise SystemExit(
+                    f"The fielded semantic index is missing {field_name}."
+                )
+            file_name = entry.get("file")
+            if not isinstance(file_name, str) or not file_name:
+                raise SystemExit(
+                    f"The fielded semantic index has no {field_name} file."
+                )
+            vectors[field_name] = numpy.memmap(
+                semantic_dir / file_name,
+                dtype=numpy.float32,
+                mode="r",
+                shape=(trial_count, SEMANTIC_EMBEDDING_MODEL.dimensions),
+            )
+        return vectors, "fielded-public-trial-v1"
+
+    file_name = manifest.get("embedding_file")
+    if not isinstance(file_name, str) or not file_name:
         raise SystemExit(
-            "The semantic index must use the fielded-trial-retrieval-v1 format."
+            "The semantic index must declare either fielded or full-text embeddings."
         )
-    vectors: dict[str, numpy.memmap] = {}
-    for field_name in _FIELD_WEIGHTS:
-        entry = files.get(field_name)
-        if not isinstance(entry, dict):
-            raise SystemExit(f"The fielded semantic index is missing {field_name}.")
-        file_name = entry.get("file")
-        if not isinstance(file_name, str) or not file_name:
-            raise SystemExit(f"The fielded semantic index has no {field_name} file.")
-        vectors[field_name] = numpy.memmap(
+    return {
+        "full_text": numpy.memmap(
             semantic_dir / file_name,
             dtype=numpy.float32,
             mode="r",
             shape=(trial_count, SEMANTIC_EMBEDDING_MODEL.dimensions),
         )
-    return vectors
+    }, "legacy-combined-public-trial-text"
 
 
 def _topics(path: Path) -> list[tuple[str, str]]:
@@ -354,6 +377,11 @@ def _semantic_ids(
     vectors: dict[str, numpy.memmap], *, query: numpy.ndarray, ids: list[str],
     field_weights: dict[str, float], fusion: str,
 ) -> list[str]:
+    full_text = vectors.get("full_text")
+    if full_text is not None:
+        # This is one complete public-trial document per row, not a fielded index.
+        # Do not invent field weighting for a representation that does not have it.
+        return _rank_ids(full_text @ query, ids)
     ranked_by_field = {
         field_name: _rank_ids(vector @ query, ids)
         for field_name, vector in vectors.items()
@@ -503,7 +531,7 @@ def _result(
         "Precision@10": precision_at_k(grades, k=10),
         "Recall@50": recall_at_k(grades, total_relevant=eligible, k=50),
         "MRR": reciprocal_rank(grades),
-        "excluded_trial_rate_top_10": excluded_rate_at_k(grades, k=10),
+        "trec_grade_1_rate_top_10": trec_grade_1_rate_at_k(grades, k=10),
         "latency_ms": latency,
     }
 
@@ -516,7 +544,7 @@ def _metrics(results: list[dict[str, object]]) -> dict[str, float]:
         "Precision@10",
         "Recall@50",
         "MRR",
-        "excluded_trial_rate_top_10",
+        "trec_grade_1_rate_top_10",
         "latency_ms",
     )
     return {

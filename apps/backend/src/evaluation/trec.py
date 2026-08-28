@@ -17,12 +17,12 @@ from pathlib import Path
 from zipfile import BadZipFile, ZipFile
 
 from src.evaluation.metrics import (
-    excluded_rate_at_k,
     mean,
     ndcg_at_k,
     precision_at_k,
     recall_at_k,
     reciprocal_rank,
+    trec_grade_1_rate_at_k,
 )
 
 _TOKEN_PATTERN = re.compile(r"[a-z][a-z0-9-]{2,}", flags=re.IGNORECASE)
@@ -164,7 +164,9 @@ def evaluate_trec_lexical_baseline(
                     relevances, total_relevant=eligible_count, k=50
                 ),
                 "MRR": reciprocal_rank(relevances),
-                "excluded_trial_rate_top_10": excluded_rate_at_k(relevances, k=10),
+                "trec_grade_1_rate_top_10": trec_grade_1_rate_at_k(
+                    relevances, k=10
+                ),
             }
         )
     metric_names = (
@@ -174,7 +176,7 @@ def evaluate_trec_lexical_baseline(
         "Precision@10",
         "Recall@50",
         "MRR",
-        "excluded_trial_rate_top_10",
+        "trec_grade_1_rate_top_10",
     )
     return {
         "evaluation": "trec-token-adapter-lexical-baseline",

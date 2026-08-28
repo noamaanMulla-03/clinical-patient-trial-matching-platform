@@ -43,7 +43,7 @@ def test_trec_lexical_baseline_scores_archived_public_trials_without_persistence
             "Precision@10": 0.1,
             "Recall@50": 1.0,
             "MRR": 1.0,
-            "excluded_trial_rate_top_10": 0.5,
+            "trec_grade_1_rate_top_10": 0.5,
         }
     ]
 

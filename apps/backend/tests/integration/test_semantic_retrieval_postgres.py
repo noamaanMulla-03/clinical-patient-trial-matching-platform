@@ -91,6 +91,7 @@ def test_semantic_retrieval_uses_current_public_trial_vectors() -> None:
                 ]
             ),
             candidate_limit=100,
+            catalogue_as_of=datetime.now(UTC),
             encoder=_FakeQueryEncoder(),
         )
 

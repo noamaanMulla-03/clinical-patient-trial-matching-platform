@@ -11,8 +11,8 @@ import re
 from collections.abc import Sequence
 from typing import Any
 
-from src.db.models import Trial
 from src.retrieval.schemas import PatientDerivedRetrievalQuery
+from src.retrieval.trial_documents import SearchableTrial
 
 STRUCTURED_EVIDENCE_RERANKER_VERSION = "structured-evidence-reranker-v2"
 
@@ -24,11 +24,11 @@ _FIELDS_BY_TERM_KIND = {
 
 
 def rerank_fused_trial_candidates(
-    ranked_trials: Sequence[tuple[Trial, dict[str, Any]]],
+    ranked_trials: Sequence[tuple[SearchableTrial, dict[str, Any]]],
     query: PatientDerivedRetrievalQuery,
     *,
     candidate_limit: int,
-) -> list[tuple[Trial, dict[str, Any]]]:
+) -> list[tuple[SearchableTrial, dict[str, Any]]]:
     """Prefer direct structured support while retaining unknown candidates.
 
     Full-text semantic retrieval supplies recall. This second stage gives a
@@ -42,7 +42,7 @@ def rerank_fused_trial_candidates(
     if candidate_limit < 1:
         raise ValueError("candidate_limit must be positive.")
 
-    reranked: list[tuple[Trial, dict[str, Any]]] = []
+    reranked: list[tuple[SearchableTrial, dict[str, Any]]] = []
     for original_rank, (trial, scores) in enumerate(ranked_trials, 1):
         rationale = _structured_support_rationale(trial, query)
         reranked.append(
@@ -79,7 +79,7 @@ def rerank_fused_trial_candidates(
 
 
 def _structured_support_rationale(
-    trial: Trial, query: PatientDerivedRetrievalQuery
+    trial: SearchableTrial, query: PatientDerivedRetrievalQuery
 ) -> dict[str, Any]:
     fields = {
         "conditions": _normalized_values(trial.conditions),
@@ -130,7 +130,7 @@ def _structured_support_rationale(
     }
 
 
-def _intervention_texts(trial: Trial) -> list[str]:
+def _intervention_texts(trial: SearchableTrial) -> list[str]:
     values: list[str] = []
     for intervention in trial.interventions:
         if not isinstance(intervention, dict):

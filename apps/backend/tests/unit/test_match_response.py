@@ -3,8 +3,8 @@
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from src.db.models import TrialMatch
-from src.matching.schemas import TrialMatchResponse
+from src.db.models import MatchRun, TrialMatch
+from src.matching.schemas import MatchRunResponse, TrialMatchResponse
 
 
 def test_result_response_separates_retrieval_relevance_from_review_outcome() -> None:
@@ -60,6 +60,43 @@ def test_result_response_separates_retrieval_relevance_from_review_outcome() -> 
         "score": 0.0325,
         "rank": 1,
         "rank_constant": 60,
+    }
+
+
+def test_match_run_response_hides_internal_patient_fact_identifiers() -> None:
+    run = MatchRun(
+        id=uuid4(),
+        patient_import_id=uuid4(),
+        configuration_snapshot={"candidate_limit": 100},
+        retrieval_execution={
+            "mode": "hybrid",
+            "query_manifest_hash": "safe-hash",
+            "query_manifest": {
+                "included_fact_ids": ["internal-fact-1"],
+                "omitted_fact_ids": ["internal-fact-2", "internal-fact-3"],
+                "term_kinds": ["condition"],
+            },
+        },
+        parser_version="manual-v1",
+        retrieval_version="hybrid-v1",
+        rule_engine_version="deterministic-v1",
+        terminology_mapping_version="source-coded-v1",
+        prompt_version="not-used-v1",
+        model_configuration_version="not-used-v1",
+        status="completed",
+        created_at=datetime(2026, 8, 28, tzinfo=UTC),
+    )
+
+    response = MatchRunResponse.from_record(
+        run, candidate_count=1, cancellation_requested=False
+    )
+
+    assert "query_manifest" not in response.retrieval_execution
+    assert "internal-fact-1" not in response.model_dump_json()
+    assert response.retrieval_execution["query_summary"] == {
+        "included_fact_count": 1,
+        "omitted_fact_count": 2,
+        "term_kinds": ["condition"],
     }
 
 
