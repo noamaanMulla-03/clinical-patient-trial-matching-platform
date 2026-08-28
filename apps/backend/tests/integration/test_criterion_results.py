@@ -139,6 +139,12 @@ def test_results_require_snapshot_evidence_and_aggregate_to_a_bounded_outcome() 
 
         detail = await retrieve_criterion_detail(session, result.id)
         assert detail.criterion.source_text == "Adults"
+        assert detail.parser_provenance is not None
+        assert detail.parser_provenance.prompt_version == "deterministic-no-prompt-v1"
+        assert detail.parser_provenance.model_configuration_version == (
+            "deterministic-no-model-v1"
+        )
+        assert detail.parser_provenance.raw_output["criteria"] == []
         assert detail.evaluation.current_outcome == "met"
         assert [fact.fact_id for fact in detail.patient_evidence] == [
             patient_import.fact_ids[0]
@@ -148,14 +154,15 @@ def test_results_require_snapshot_evidence_and_aggregate_to_a_bounded_outcome() 
         correction = await append_reviewer_correction(
             session,
             criterion_result_id=result.id,
+            reviewer_id="reviewer-01",
             correction=ReviewCorrectionRequest(
-                reviewer_id="reviewer-01",
                 corrected_outcome="unknown",
-                reason="Evidence needs manual reconciliation.",
+                reason_code="evidence_conflicting",
             ),
         )
         assert correction.previous_outcome == "met"
         assert correction.corrected_outcome == "unknown"
+        assert correction.reason_code == "evidence_conflicting"
         corrected_detail = await retrieve_criterion_detail(session, result.id)
         assert corrected_detail.evaluation.outcome == "met"
         assert corrected_detail.evaluation.current_outcome == "unknown"
@@ -172,10 +179,10 @@ def test_results_require_snapshot_evidence_and_aggregate_to_a_bounded_outcome() 
             await append_reviewer_correction(
                 session,
                 criterion_result_id=result.id,
+                reviewer_id="reviewer-01",
                 correction=ReviewCorrectionRequest(
-                    reviewer_id="reviewer-01",
                     corrected_outcome="unknown",
-                    reason="Duplicate correction is not permitted.",
+                    reason_code="evidence_conflicting",
                 ),
             )
 

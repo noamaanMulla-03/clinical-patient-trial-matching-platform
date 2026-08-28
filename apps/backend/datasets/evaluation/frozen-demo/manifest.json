@@ -13,6 +13,14 @@
       "sha256": "b04141bdd9f695d8cc4718109fe2801803d300b68ccbecfd66de377b985987c7"
     },
     {
+      "path": "heldout-retrieval.json",
+      "sha256": "e44149ad24d00d4ddf68e3002fad04f6791f8055823ab68ff6be2b7d037b6c51"
+    },
+    {
+      "path": "parser.json",
+      "sha256": "5e5f90358b1c996d45b5530a86e4abe5dae9661b0a292d89c5c44fd25ad02881"
+    },
+    {
       "path": "retrieval.json",
       "sha256": "6a6ae82b791f2de245986fb679bd230ac9abe8e10d701063985a04e30ca595bd"
     }

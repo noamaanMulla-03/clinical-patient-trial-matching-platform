@@ -53,7 +53,8 @@ app = FastAPI(
         {
             "name": "match-runs",
             "description": (
-                "Queued lexical and semantic trial retrieval runs over synthetic patient imports."
+                "Queued lexical and semantic trial retrieval runs over synthetic "
+                "patient imports."
             ),
         },
         {

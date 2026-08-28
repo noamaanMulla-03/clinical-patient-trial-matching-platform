@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.criteria.eligibility_parser import create_parsed_criteria
 from src.db.models import Patient, PatientFactRecord, PatientImport, Trial, TrialVersion
 from src.fhir.importer import FHIR_R4_VERSION, normalize_patient_resource
 from src.fhir.safety import require_synthetic_fhir_bundle
@@ -325,6 +326,13 @@ async def store_trial_version(
     )
     session.add(trial_version)
     await session.flush()
+    # A new source snapshot needs its own exact criterion links even when later
+    # retrieval work is safely reused from an unchanged matching projection.
+    await create_parsed_criteria(
+        session,
+        trial_version_id=trial_version.id,
+        eligibility_text=trial_fields.eligibility_text,
+    )
     previous_current_versions = list(
         await session.scalars(
             select(TrialVersion)

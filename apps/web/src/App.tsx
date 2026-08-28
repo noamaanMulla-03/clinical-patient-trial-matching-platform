@@ -11,6 +11,7 @@ import {
   ImportResult,
   CriterionDetail,
   CriterionOutcome,
+  ReviewCorrectionReason,
   MatchCandidate,
   MatchRun,
   ResultTab,
@@ -21,8 +22,10 @@ import {
   TrialCatalogueTrials,
   TrialSync,
   TrialSyncCreateInput,
+  candidateSupportingFactIds,
   retrievalReason,
   semanticRetrievalReason,
+  structuredRetrievalReason,
 } from './clinical';
 
 type Screen = 'catalogue' | 'import' | 'timeline' | 'match-run' | 'criterion-detail';
@@ -1231,11 +1234,19 @@ function CandidateList({
                             : semanticRetrievalReason(candidate.semantic_relevance)}
                       </dd>
                     </div>
+                    {candidate.structured_relevance ? (
+                      <div className="why-listed">
+                        <dt>Structured support</dt>
+                        <dd>
+                          {structuredRetrievalReason(candidate.structured_relevance)}
+                        </dd>
+                      </div>
+                    ) : null}
                   </dl>
-                  {candidate.retrieval_relevance?.matched_fact_ids.length ? (
+                  {candidateSupportingFactIds(candidate).length ? (
                     <div className="matched-facts">
                       <span>Matched source facts</span>
-                      {candidate.retrieval_relevance.matched_fact_ids.map((factId) => (
+                      {candidateSupportingFactIds(candidate).map((factId) => (
                         <a
                           href={apiPath(
                             `/patients/${encodeURIComponent(candidate.patient_id)}/facts/${encodeURIComponent(factId)}/source`,
@@ -1424,7 +1435,24 @@ function CriterionDetailView({
           {detail.criterion.requires_human_review && (
             <p className="review-flag">
               The source parser marked this criterion for human review.
+              {detail.criterion.review_reasons.length > 0 && (
+                <>
+                  {' '}
+                  Reason:{' '}
+                  {detail.criterion.review_reasons.join(', ').replace(/_/g, ' ')}.
+                </>
+              )}
             </p>
+          )}
+          {detail.parser_provenance && (
+            <details>
+              <summary>Parser provenance</summary>
+              <p className="code">
+                Prompt {detail.parser_provenance.prompt_version} · model{' '}
+                {detail.parser_provenance.model_configuration_version}
+              </p>
+              <pre>{JSON.stringify(detail.parser_provenance.raw_output, null, 2)}</pre>
+            </details>
           )}
         </section>
         <section className="detail-card" aria-labelledby="parsed-criterion-title">
@@ -1531,9 +1559,10 @@ function ReviewCorrectionForm({
   detail: CriterionDetail;
   onCorrected: () => void;
 }) {
-  const [reviewerId, setReviewerId] = useState('');
+  const [accessToken, setAccessToken] = useState('');
   const [correctedOutcome, setCorrectedOutcome] = useState<CriterionOutcome>('unknown');
-  const [reason, setReason] = useState('');
+  const [reasonCode, setReasonCode] =
+    useState<ReviewCorrectionReason>('evidence_missing');
   const [message, setMessage] = useState<string>();
   const [busy, setBusy] = useState(false);
 
@@ -1546,18 +1575,18 @@ function ReviewCorrectionForm({
         `/criterion-results/${encodeURIComponent(detail.evaluation.id)}/corrections`,
         {
           method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken.trim()}` },
           body: JSON.stringify({
-            reviewer_id: reviewerId,
             corrected_outcome: correctedOutcome,
-            reason,
+            reason_code: reasonCode,
           }),
         },
       );
-      setReason('');
+      setAccessToken('');
       onCorrected();
     } catch {
       setMessage(
-        'The reviewer correction could not be saved. Select a different outcome and provide a reason.',
+        'The reviewer correction could not be saved. Check the access token and select a reason code.',
       );
     } finally {
       setBusy(false);
@@ -1573,12 +1602,14 @@ function ReviewCorrectionForm({
       </p>
       <form onSubmit={submit}>
         <div className="correction-fields">
-          <label htmlFor="reviewer-id">
-            Reviewer ID
+          <label htmlFor="reviewer-access-token">
+            Reviewer access token
             <input
-              id="reviewer-id"
-              value={reviewerId}
-              onChange={(event) => setReviewerId(event.target.value)}
+              autoComplete="off"
+              id="reviewer-access-token"
+              type="password"
+              value={accessToken}
+              onChange={(event) => setAccessToken(event.target.value)}
               required
             />
           </label>
@@ -1605,16 +1636,30 @@ function ReviewCorrectionForm({
             </select>
           </label>
         </div>
-        <label htmlFor="correction-reason">
+        <label htmlFor="correction-reason-code">
           Reason for correction
-          <textarea
-            id="correction-reason"
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-            minLength={3}
-            maxLength={2000}
-            required
-          />
+          <select
+            id="correction-reason-code"
+            value={reasonCode}
+            onChange={(event) =>
+              setReasonCode(event.target.value as ReviewCorrectionReason)
+            }
+          >
+            {(
+              [
+                'evidence_missing',
+                'evidence_conflicting',
+                'evidence_stale',
+                'source_span_issue',
+                'source_data_issue',
+                'other_nonclinical_review_issue',
+              ] as ReviewCorrectionReason[]
+            ).map((reason) => (
+              <option key={reason} value={reason}>
+                {reason.replace(/_/g, ' ')}
+              </option>
+            ))}
+          </select>
         </label>
         {message && (
           <p className="error" role="alert">
@@ -1643,7 +1688,7 @@ function AuditHistory({ history }: { history: CriterionDetail['audit_history'] }
           <li key={event.id}>
             <div>
               <strong>{event.event_type.replace('_', ' ')}</strong>
-              <p>{event.reason.replace(/_/g, ' ')}</p>
+              <p>{event.reason_code.replace(/_/g, ' ')}</p>
             </div>
             <dl className="detail-meta">
               <div>

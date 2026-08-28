@@ -22,6 +22,7 @@ from src.retrieval.filtering import metadata_from_trial, trial_matches_metadata
 from src.retrieval.fusion import fuse_ranked_trial_candidates
 from src.retrieval.lexical import lexical_trial_candidates_statement
 from src.retrieval.query_builder import build_patient_retrieval_query
+from src.retrieval.reranking import rerank_fused_trial_candidates
 from src.retrieval.schemas import PatientDerivedRetrievalQuery
 from src.retrieval.scoring import rank_scored_trials, score_trial_candidate
 from src.retrieval.semantic import SemanticTrialCandidate, semantic_trial_candidates
@@ -106,9 +107,14 @@ async def _persist_ranked_candidates(session: AsyncSession, run: MatchRun) -> No
         for candidate in semantic_candidates
         if trial_matches_metadata(metadata_from_trial(candidate.trial), query.filters)
     )
-    ranked_trials = fuse_ranked_trial_candidates(
+    fused_trials = fuse_ranked_trial_candidates(
         ranked_lexical_trials,
         filtered_semantic_candidates,
+        candidate_limit=candidate_limit,
+    )
+    ranked_trials = rerank_fused_trial_candidates(
+        fused_trials,
+        query,
         candidate_limit=candidate_limit,
     )
     await _raise_if_cancelled(session, run)

@@ -36,3 +36,19 @@ def test_real_patient_data_mode_is_always_blocked() -> None:
 def test_invalid_boolean_is_rejected() -> None:
     with pytest.raises(StartupSafetyError, match="ALLOW_REAL_PATIENT_DATA must be"):
         validate_startup_settings({"ALLOW_REAL_PATIENT_DATA": "perhaps"})
+
+
+def test_reviewer_authentication_configuration_requires_token_and_actor_together() -> (
+    None
+):
+    with pytest.raises(StartupSafetyError, match="must be set together"):
+        validate_startup_settings({"REVIEWER_CORRECTION_TOKEN": "token"})
+
+    settings = validate_startup_settings(
+        {
+            "REVIEWER_CORRECTION_TOKEN": "token",
+            "REVIEWER_CORRECTION_ACTOR_ID": "reviewer-01",
+        }
+    )
+
+    assert settings.reviewer_correction_actor_id == "reviewer-01"

@@ -17,6 +17,7 @@ def test_models_register_the_required_tables() -> None:
         "trial_matches",
         "trial_embedding_jobs",
         "trial_embeddings",
+        "trial_parser_runs",
         "trial_syncs",
         "trial_versions",
         "trials",
@@ -109,6 +110,7 @@ def test_matching_tables_preserve_the_full_evidence_chain() -> None:
         "review_decisions": {"criterion_results.id"},
         "trial_embeddings": {"trial_versions.id"},
         "trial_embedding_jobs": {"trial_versions.id"},
+        "trial_parser_runs": {"trial_versions.id"},
     }
 
     for table_name, expected_targets in relationships.items():
@@ -133,6 +135,13 @@ def test_criterion_results_require_evidence_for_non_unknown_outcomes() -> None:
     assert constraints["ck_criterion_results_evidence_required"] == (
         "outcome = 'unknown' OR jsonb_array_length(evidence_fact_ids) > 0"
     )
+
+
+def test_criteria_retain_explicit_parser_review_reasons() -> None:
+    criteria = Base.metadata.tables["criteria"]
+
+    assert "review_reasons" in criteria.columns
+    assert not criteria.c.review_reasons.nullable
 
 
 def test_match_runs_require_queryable_configuration_versions() -> None:

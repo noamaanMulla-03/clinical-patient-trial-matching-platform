@@ -131,7 +131,12 @@ def test_worker_persists_ranked_trial_versions_for_one_immutable_patient_import(
         results = await match_run_results(session, completed_run)
         assert response.candidate_limit == MAX_MATCH_RUN_CANDIDATES
         assert response.candidate_count == 1
-        assert response.configuration_versions["retrieval"] == "lexical-semantic-rrf-v1"
+        assert response.configuration_versions["retrieval"] == (
+            "lexical-semantic-rrf-structured-reranker-v1"
+        )
+        assert results[0].structured_relevance is not None
+        assert results[0].structured_relevance.status == "direct_support"
+        assert results[0].structured_relevance.supported_fields == ["conditions"]
         assert results[0].nct_id == nct_id
         assert results[0].title == "Diabetes and metformin study"
         assert results[0].study_status == "RECRUITING"
@@ -221,12 +226,25 @@ def test_worker_uses_semantic_only_candidate_when_lexical_has_no_match(
             "reciprocal_rank_fusion_rank": 1,
             "reciprocal_rank_fusion_rank_constant": 60,
             "reciprocal_rank_fusion_version": "reciprocal-rank-fusion-v1",
+            "structured_evidence_reranker_version": "structured-evidence-reranker-v2",
+            "structured_evidence_reranker_input_rank": 1,
+            "structured_evidence_reranker_rank": 1,
+            "structured_evidence_support_tier": 0,
+            "structured_evidence_supported_fields": [],
+            "structured_evidence_supporting_fact_ids": [],
+            "structured_evidence_status": "unknown",
+            "structured_evidence_note": (
+                "No direct structured support was found; retained for review "
+                "without a penalty."
+            ),
         }
         results = await match_run_results(session, completed)
         assert results[0].retrieval_sources == ["semantic"]
         assert results[0].retrieval_relevance is None
         assert results[0].semantic_relevance is not None
         assert results[0].semantic_relevance.score == 0.74
+        assert results[0].structured_relevance is not None
+        assert results[0].structured_relevance.status == "unknown"
 
     _run_database_check(check)
 

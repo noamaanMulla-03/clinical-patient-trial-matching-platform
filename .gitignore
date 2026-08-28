@@ -13,6 +13,9 @@ htmlcov/
 
 # External research benchmark inputs are reproducibly downloaded, not committed.
 apps/backend/datasets/evaluation/trec/raw/
+apps/backend/datasets/evaluation/trec/results/
+apps/backend/datasets/evaluation/trec/semantic/
+apps/backend/datasets/evaluation/trec/semantic-core/
 
 # Node.js
 node_modules/

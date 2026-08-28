@@ -21,6 +21,8 @@ class StartupSettings:
     app_env: str
     allow_production_like_environment: bool
     allow_real_patient_data: bool
+    reviewer_correction_token: str | None
+    reviewer_correction_actor_id: str | None
 
 
 def _read_bool(environ: Mapping[str, str], name: str, *, default: bool) -> bool:
@@ -39,6 +41,13 @@ def _read_bool(environ: Mapping[str, str], name: str, *, default: bool) -> bool:
     )
 
 
+def _read_optional_text(environ: Mapping[str, str], name: str) -> str | None:
+    value = environ.get(name)
+    if value is None or not value.strip():
+        return None
+    return value.strip()
+
+
 def load_startup_settings(
     environ: Mapping[str, str] | None = None,
 ) -> StartupSettings:
@@ -49,6 +58,16 @@ def load_startup_settings(
     if not app_env:
         raise StartupSafetyError("APP_ENV must not be blank.")
 
+    reviewer_correction_token = _read_optional_text(values, "REVIEWER_CORRECTION_TOKEN")
+    reviewer_correction_actor_id = _read_optional_text(
+        values, "REVIEWER_CORRECTION_ACTOR_ID"
+    )
+    if (reviewer_correction_token is None) != (reviewer_correction_actor_id is None):
+        raise StartupSafetyError(
+            "REVIEWER_CORRECTION_TOKEN and REVIEWER_CORRECTION_ACTOR_ID must be "
+            "set together."
+        )
+
     return StartupSettings(
         app_env=app_env,
         allow_production_like_environment=_read_bool(
@@ -57,6 +76,8 @@ def load_startup_settings(
         allow_real_patient_data=_read_bool(
             values, "ALLOW_REAL_PATIENT_DATA", default=False
         ),
+        reviewer_correction_token=reviewer_correction_token,
+        reviewer_correction_actor_id=reviewer_correction_actor_id,
     )
 
 

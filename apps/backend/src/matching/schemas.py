@@ -105,6 +105,7 @@ class TrialMatchResponse(BaseModel):
     retrieval_relevance: RetrievalRelevanceResponse | None = None
     semantic_relevance: SemanticRetrievalRelevanceResponse | None = None
     fused_relevance: ReciprocalRankFusionRelevanceResponse | None = None
+    structured_relevance: StructuredRetrievalRelevanceResponse | None = None
     criterion_results: list[CriterionResultSummary] = Field(default_factory=list)
     outcome: (
         Literal["potential_match", "likely_excluded", "needs_review", "not_relevant"]
@@ -143,6 +144,9 @@ class TrialMatchResponse(BaseModel):
                 match.retrieval_scores
             ),
             fused_relevance=ReciprocalRankFusionRelevanceResponse.from_scores(
+                match.retrieval_scores
+            ),
+            structured_relevance=StructuredRetrievalRelevanceResponse.from_scores(
                 match.retrieval_scores
             ),
             criterion_results=criterion_results or [],
@@ -251,6 +255,65 @@ class ReciprocalRankFusionRelevanceResponse(BaseModel):
             score=float(score),
             rank=rank,
             rank_constant=rank_constant,
+        )
+
+
+class StructuredRetrievalRelevanceResponse(BaseModel):
+    """Direct structured support used only to order review candidates."""
+
+    method: Literal["structured-evidence-reranker-v2"]
+    status: Literal["direct_support", "unknown"]
+    support_tier: int = Field(ge=0, le=3)
+    input_rank: int = Field(gt=0)
+    rank: int = Field(gt=0)
+    supported_fields: list[Literal["conditions", "title", "interventions"]] = Field(
+        default_factory=list
+    )
+    supporting_fact_ids: list[str] = Field(default_factory=list)
+    note: str
+
+    @classmethod
+    def from_scores(
+        cls, scores: dict[str, Any]
+    ) -> StructuredRetrievalRelevanceResponse | None:
+        method = scores.get("structured_evidence_reranker_version")
+        status = scores.get("structured_evidence_status")
+        support_tier = scores.get("structured_evidence_support_tier")
+        input_rank = scores.get("structured_evidence_reranker_input_rank")
+        rank = scores.get("structured_evidence_reranker_rank")
+        note = scores.get("structured_evidence_note")
+        if (
+            method != "structured-evidence-reranker-v2"
+            or status not in {"direct_support", "unknown"}
+            or type(support_tier) is not int
+            or support_tier not in {0, 1, 2, 3}
+            or type(input_rank) is not int
+            or input_rank < 1
+            or type(rank) is not int
+            or rank < 1
+            or not isinstance(note, str)
+        ):
+            return None
+        fields = scores.get("structured_evidence_supported_fields")
+        fact_ids = scores.get("structured_evidence_supporting_fact_ids")
+        allowed_fields = {"conditions", "title", "interventions"}
+        if not isinstance(fields, list) or not all(
+            isinstance(field, str) and field in allowed_fields for field in fields
+        ):
+            return None
+        if not isinstance(fact_ids, list) or not all(
+            isinstance(fact_id, str) for fact_id in fact_ids
+        ):
+            return None
+        return cls(
+            method=method,
+            status=status,
+            support_tier=support_tier,
+            input_rank=input_rank,
+            rank=rank,
+            supported_fields=fields,
+            supporting_fact_ids=fact_ids,
+            note=note,
         )
 
 

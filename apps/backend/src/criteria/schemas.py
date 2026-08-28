@@ -11,6 +11,11 @@ from src.criteria.units import UnitCompatibilityError, validate_lab_unit
 from src.fhir.schemas import ClinicalCode
 
 CriterionCategory = Literal["inclusion", "exclusion"]
+CriterionReviewReason = Literal[
+    "ambiguous_clause",
+    "nested_clause",
+    "low_confidence_parse",
+]
 CriterionOutcome = Literal["met", "not_met", "unknown", "conflicting"]
 CriterionEvaluationReason = Literal[
     "predicate_matched",

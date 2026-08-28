@@ -114,7 +114,9 @@ async def store_criterion_result(
         evaluation_path="deterministic",
         # The reason is a controlled code, never source clinical text.
         explanation=evaluation.reason,
-        requires_review=evaluation.requires_review,
+        # Automatically parsed criteria are never allowed to clear a candidate
+        # without reviewer inspection, even when the deterministic rule matches.
+        requires_review=evaluation.requires_review or criterion.requires_human_review,
         evaluated_at=datetime.now(UTC),
     )
     session.add(result)

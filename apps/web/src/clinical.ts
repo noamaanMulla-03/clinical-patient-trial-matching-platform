@@ -201,6 +201,16 @@ export type MatchCandidate = {
     rank: number;
     rank_constant: number;
   } | null;
+  structured_relevance?: {
+    method: 'structured-evidence-reranker-v2';
+    status: 'direct_support' | 'unknown';
+    support_tier: number;
+    input_rank: number;
+    rank: number;
+    supported_fields: ('conditions' | 'title' | 'interventions')[];
+    supporting_fact_ids: string[];
+    note: string;
+  } | null;
   criterion_results: {
     id: string;
     category: 'inclusion' | 'exclusion';
@@ -215,6 +225,14 @@ export type MatchCandidate = {
 
 export type CriterionOutcome = 'met' | 'not_met' | 'unknown' | 'conflicting';
 
+export type ReviewCorrectionReason =
+  | 'evidence_missing'
+  | 'evidence_conflicting'
+  | 'evidence_stale'
+  | 'source_span_issue'
+  | 'source_data_issue'
+  | 'other_nonclinical_review_issue';
+
 export type CriterionDetail = {
   patient_id: string;
   trial_match_id: string;
@@ -228,8 +246,16 @@ export type CriterionDetail = {
     parser_version: string;
     parser_confidence?: string | number | null;
     requires_human_review: boolean;
+    review_reasons: ('ambiguous_clause' | 'nested_clause' | 'low_confidence_parse')[];
     created_at: string;
   };
+  parser_provenance?: {
+    parser_version: string;
+    prompt_version: string;
+    model_configuration_version: string;
+    raw_output: Record<string, unknown>;
+    created_at: string;
+  } | null;
   evaluation: {
     id: string;
     outcome: CriterionOutcome;
@@ -249,7 +275,7 @@ export type CriterionDetail = {
     actor_id: string;
     outcome: CriterionOutcome;
     previous_outcome?: CriterionOutcome | null;
-    reason: string;
+    reason_code: string;
     evaluation_path?: string | null;
   }[];
 };
@@ -315,6 +341,26 @@ export function fusedRetrievalReason(
   if (sources.includes('lexical'))
     return 'This combined retrieval rank was based on documented lexical matching; review the linked source facts.';
   return 'This combined retrieval rank was based on semantic similarity to public trial text; review the trial criteria before relying on it.';
+}
+
+export function structuredRetrievalReason(
+  relevance: MatchCandidate['structured_relevance'],
+): string | null {
+  if (!relevance) return null;
+  if (relevance.status === 'direct_support') {
+    const fields = relevance.supported_fields.join(', ');
+    return `Rank adjusted upward because documented patient-fact text appears in the trial ${fields} field${relevance.supported_fields.length === 1 ? '' : 's'}. This is not an eligibility decision.`;
+  }
+  return 'No direct structured trial-field support was found. The trial remains listed for review and was not treated as a conflict.';
+}
+
+export function candidateSupportingFactIds(candidate: MatchCandidate): string[] {
+  return [
+    ...new Set([
+      ...(candidate.retrieval_relevance?.matched_fact_ids ?? []),
+      ...(candidate.structured_relevance?.supporting_fact_ids ?? []),
+    ]),
+  ];
 }
 
 export type ResultTab =

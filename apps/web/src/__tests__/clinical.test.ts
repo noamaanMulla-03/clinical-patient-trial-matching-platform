@@ -9,8 +9,10 @@ import {
   Fact,
   fusedRetrievalReason,
   MatchCandidate,
+  candidateSupportingFactIds,
   retrievalReason,
   semanticRetrievalReason,
+  structuredRetrievalReason,
 } from '../clinical';
 
 const observation: Fact = {
@@ -151,5 +153,43 @@ describe('clinical display helpers', () => {
     expect(semanticRetrievalReason({ score: 0.74, rank: 1 })).toContain(
       'review the source trial criteria',
     );
+  });
+
+  it('explains structured support without recasting it as eligibility', () => {
+    expect(
+      structuredRetrievalReason({
+        method: 'structured-evidence-reranker-v2',
+        status: 'direct_support',
+        support_tier: 3,
+        input_rank: 2,
+        rank: 1,
+        supported_fields: ['conditions'],
+        supporting_fact_ids: ['fact-1'],
+        note: 'unused in display',
+      }),
+    ).toContain('not an eligibility decision');
+  });
+
+  it('links structured support facts even for a semantic-only candidate', () => {
+    const candidate: MatchCandidate = {
+      id: '1',
+      patient_id: 'synthetic-patient-1',
+      nct_id: 'NCT00000001',
+      candidate_rank: 1,
+      retrieval_sources: ['semantic'],
+      criterion_results: [],
+      structured_relevance: {
+        method: 'structured-evidence-reranker-v2',
+        status: 'direct_support',
+        support_tier: 3,
+        input_rank: 1,
+        rank: 1,
+        supported_fields: ['conditions'],
+        supporting_fact_ids: ['fact-1'],
+        note: 'unused in display',
+      },
+    };
+
+    expect(candidateSupportingFactIds(candidate)).toEqual(['fact-1']);
   });
 });

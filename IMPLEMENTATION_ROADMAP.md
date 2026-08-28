@@ -171,19 +171,36 @@ This roadmap translates the technical design into small, incremental delivery st
 - [x] Add pgvector storage and embedding-generation jobs.
 - [x] Implement semantic retrieval alongside lexical retrieval.
 - [x] Fuse rankings using reciprocal rank fusion.
-- [ ] Compare lexical-only versus hybrid retrieval on held-out TREC topics.
-- [ ] Define criterion-parser input and output schemas.
-- [ ] Parse eligibility text into atomic, source-linked criteria.
-- [ ] Mark ambiguous, nested, or low-confidence criteria for review.
-- [ ] Version parser prompts and models and preserve raw parser output.
-- [ ] Evaluate parsing separately from retrieval and final matching.
-- [ ] Do not enable automated use of parsed criteria until source-span and safety tests pass.
+- [x] Compare lexical-only versus hybrid retrieval on held-out TREC topics.
+- [x] Define criterion-parser input and output schemas.
+- [x] Parse eligibility text into atomic, source-linked criteria.
+- [x] Mark ambiguous, nested, or low-confidence criteria for review.
+- [x] Version parser prompts and models and preserve raw parser output.
+- [x] Evaluate parsing separately from retrieval and final matching.
+- [x] Do not enable automated use of parsed criteria until source-span and safety tests pass.
 
 ### Exit checks
 
 - [ ] Hybrid retrieval measurably improves an agreed metric without increasing harmful excluded-trial ranking.
-- [ ] Parsed criteria always retain original text and source spans.
-- [ ] Ambiguous criteria safely abstain.
+- [x] Parsed criteria always retain original text and source spans.
+- [x] Ambiguous criteria safely abstain.
+
+## Phase 8.1 — Retrieval Tuning and Safety Validation
+
+- [x] Analyse poor TREC retrieval outcomes topic by topic without using them as patient records.
+- [x] Split retrieval evaluation topics into tuning and held-out test sets.
+- [x] Tune weighted lexical and semantic fusion using tuning topics only.
+- [ ] Represent trial title, conditions, interventions, and eligibility text as separate retrieval signals.
+- [x] Add a bounded second-stage re-ranker for retrieved candidates.
+- [x] Apply deterministic penalties only for clear, source-supported conflicts; preserve unknown and review-needed outcomes for incomplete evidence.
+- [x] Compare every candidate configuration against the frozen lexical baseline on held-out topics.
+- [x] Document retrieval failure cases and configurations that were rejected.
+
+### Exit checks
+
+- [ ] Hybrid retrieval reaches nDCG@10 of at least 0.25 and Precision@10 of at least 0.25 on held-out topics.
+- [ ] Hybrid retrieval has an excluded-trial rate of no more than 5% in the top 10 and does not worsen it relative to the lexical baseline.
+- [ ] No evaluation input is stored as a patient record or used to make an eligibility, treatment, enrollment, or outreach decision.
 
 ## Phase 9 — LLM Fallback and Governance
 
@@ -232,7 +249,7 @@ Complete these before starting semantic retrieval or LLM work:
 - [x] Phase 3: Trial ingestion and versioning
 - [x] Phase 4: Deterministic criterion rules
 - [x] Phase 5: Lexical retrieval and match runs
-- [ ] Phase 6: Minimal reviewer interface
-- [ ] Phase 7: Baseline evaluation
+- [x] Phase 6: Minimal reviewer interface
+- [x] Phase 7: Baseline evaluation
 
 The central safety rule throughout implementation is: missing, ambiguous, conflicting, stale, or unsupported evidence must lead to `unknown` or `needs_review`, never to a reassuring match outcome.

@@ -1,0 +1,110 @@
+{
+  "configuration": {
+    "parser": {
+      "parser_version": "deterministic-eligibility-age-v1",
+      "prompt_version": "deterministic-no-prompt-v1",
+      "model_configuration_version": "deterministic-no-model-v1",
+      "output_schema_version": "trial-criteria-parser-output-v1",
+      "automated_criterion_use_enabled": false
+    },
+    "scope": "eligibility text to atomic criteria only"
+  },
+  "cases": [
+    {
+      "id": "explicit-minimum-age",
+      "eligibility_text": "Inclusion Criteria:\n- Age 18 years or older",
+      "expected": {
+        "criteria": [
+          {
+            "category": "inclusion",
+            "source_text": "Age 18 years or older",
+            "source_start": 22,
+            "source_end": 43,
+            "rule": {"kind": "age", "operator": "at_least", "years": 18}
+          }
+        ],
+        "review_signals": [],
+        "expect_abstention": false
+      }
+    },
+    {
+      "id": "explicit-age-range",
+      "eligibility_text": "Inclusion Criteria:\n- Age 21 to 65 years",
+      "expected": {
+        "criteria": [
+          {
+            "category": "inclusion",
+            "source_text": "Age 21 to 65 years",
+            "source_start": 22,
+            "source_end": 40,
+            "rule": {"kind": "age", "operator": "at_least", "years": 21}
+          },
+          {
+            "category": "inclusion",
+            "source_text": "Age 21 to 65 years",
+            "source_start": 22,
+            "source_end": 40,
+            "rule": {"kind": "age", "operator": "at_most", "years": 65}
+          }
+        ],
+        "review_signals": [],
+        "expect_abstention": false
+      }
+    },
+    {
+      "id": "nested-ambiguous-age",
+      "eligibility_text": "Inclusion Criteria:\n- Age 18 years or older (unless an exception applies)",
+      "expected": {
+        "criteria": [
+          {
+            "category": "inclusion",
+            "source_text": "Age 18 years or older",
+            "source_start": 22,
+            "source_end": 43,
+            "rule": {"kind": "age", "operator": "at_least", "years": 18}
+          }
+        ],
+        "review_signals": [
+          {
+            "source_start": 22,
+            "source_end": 43,
+            "reasons": ["ambiguous_clause", "nested_clause"]
+          }
+        ],
+        "expect_abstention": false
+      }
+    },
+    {
+      "id": "symbolic-age-review",
+      "eligibility_text": "Exclusion Criteria:\n- Age <= 16",
+      "expected": {
+        "criteria": [
+          {
+            "category": "exclusion",
+            "source_text": "Age <= 16",
+            "source_start": 22,
+            "source_end": 31,
+            "rule": {"kind": "age", "operator": "at_most", "years": 16}
+          }
+        ],
+        "review_signals": [
+          {
+            "source_start": 22,
+            "source_end": 31,
+            "reasons": ["low_confidence_parse"]
+          }
+        ],
+        "expect_abstention": false
+      }
+    },
+    {
+      "id": "unsupported-ecog-abstention",
+      "eligibility_text": "Inclusion Criteria:\n- ECOG performance status 0-1",
+      "expected": {
+        "criteria": [],
+        "review_signals": [],
+        "expect_abstention": true
+      }
+    }
+  ]
+}

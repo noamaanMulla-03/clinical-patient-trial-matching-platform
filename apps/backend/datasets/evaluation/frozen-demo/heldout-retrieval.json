@@ -1,0 +1,51 @@
+{
+  "candidate_limit": 3,
+  "configuration": {
+    "term_mapping_version": "trec-review-map-v1",
+    "benchmark": {
+      "kind": "synthetic_regression"
+    },
+    "semantic_model": {
+      "configuration_version": "pubmedbert-embeddings-v1",
+      "repository": "NeuML/pubmedbert-base-embeddings",
+      "revision": "b79526d6ef3645e0df4530322e266f24c829f5ef",
+      "dimensions": 768,
+      "max_input_tokens": 512,
+      "normalize_embeddings": true,
+      "license": "Apache-2.0"
+    },
+    "rank_fusion": {
+      "method": "reciprocal-rank-fusion-v1",
+      "rank_constant": 60
+    },
+    "acceptance_gate": {
+      "agreed_metric": "nDCG@5",
+      "minimum_improvement": 0.01,
+      "maximum_excluded_trial_rate_top_10_increase": 0.0
+    }
+  },
+  "trials": [
+    {"nct_id": "NCT00000001", "conditions": ["Melanoma"]},
+    {"nct_id": "NCT00000002", "conditions": ["Melanoma"]},
+    {"nct_id": "NCT00000003", "conditions": ["Other"]}
+  ],
+  "topics": [
+    {
+      "id": "2022-001",
+      "split": "heldout",
+      "terms": [
+        {
+          "text": "Melanoma",
+          "source_fact_id": "reviewed-fact-1",
+          "kind": "condition"
+        }
+      ],
+      "semantic_ranked_nct_ids": ["NCT00000002", "NCT00000003"],
+      "judgments": {
+        "NCT00000001": 1,
+        "NCT00000002": 2,
+        "NCT00000003": 0
+      }
+    }
+  ]
+}

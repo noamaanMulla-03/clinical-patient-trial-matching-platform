@@ -6,27 +6,33 @@ from pydantic import ValidationError
 from src.criteria.api_schemas import ReviewCorrectionRequest
 
 
-def test_reviewer_correction_normalizes_identifiers_and_rejects_extras() -> None:
-    """The correction boundary stores review metadata, not arbitrary request content."""
+def test_reviewer_correction_requires_a_controlled_reason_code_and_rejects_extras() -> (
+    None
+):
+    """The correction boundary does not accept reviewer identity or free text."""
     request = ReviewCorrectionRequest.model_validate(
         {
-            "reviewer_id": " reviewer-17 ",
             "corrected_outcome": "conflicting",
-            "reason": " Evidence sources disagree. ",
+            "reason_code": "evidence_conflicting",
         }
     )
 
     assert request.model_dump() == {
-        "reviewer_id": "reviewer-17",
         "corrected_outcome": "conflicting",
-        "reason": "Evidence sources disagree.",
+        "reason_code": "evidence_conflicting",
     }
     with pytest.raises(ValidationError):
         ReviewCorrectionRequest.model_validate(
             {
-                "reviewer_id": "reviewer-17",
                 "corrected_outcome": "met",
-                "reason": "Reason provided.",
+                "reason_code": "evidence_missing",
                 "unexpected": "value",
+            }
+        )
+    with pytest.raises(ValidationError):
+        ReviewCorrectionRequest.model_validate(
+            {
+                "corrected_outcome": "met",
+                "reason_code": "Patient reported a new diagnosis.",
             }
         )

@@ -22,6 +22,10 @@ class EmbeddingEncoder(Protocol):
 
     def encode(self, document: str) -> Sequence[float]: ...
 
+    def encode_many(
+        self, documents: Sequence[str], *, batch_size: int
+    ) -> Sequence[Sequence[float]]: ...
+
 
 class SentenceTransformerEmbeddingEncoder:
     """Load the pinned model locally; embedding content never leaves this process."""
@@ -37,6 +41,9 @@ class SentenceTransformerEmbeddingEncoder:
             self._model = SentenceTransformer(
                 SEMANTIC_EMBEDDING_MODEL.repository,
                 revision=SEMANTIC_EMBEDDING_MODEL.revision,
+                # Patient-derived queries and public-trial text stay local. The
+                # pinned model must be provisioned before semantic retrieval runs.
+                local_files_only=True,
             )
         except Exception as error:
             raise EmbeddingEncoderUnavailableError(
@@ -55,6 +62,26 @@ class SentenceTransformerEmbeddingEncoder:
         except Exception as error:
             raise EmbeddingEncoderError(
                 "The configured embedding model could not encode a document."
+            ) from error
+
+    def encode_many(
+        self, documents: Sequence[str], *, batch_size: int
+    ) -> Sequence[Sequence[float]]:
+        """Encode public trial documents locally in bounded batches for evaluation."""
+        if batch_size < 1:
+            raise ValueError("batch_size must be positive.")
+        try:
+            vectors = self._model.encode(
+                list(documents),
+                batch_size=batch_size,
+                normalize_embeddings=SEMANTIC_EMBEDDING_MODEL.normalize_embeddings,
+                show_progress_bar=False,
+            )
+            return [[float(value) for value in vector] for vector in vectors]
+        except Exception as error:
+            raise EmbeddingEncoderError(
+                "The configured embedding model could not encode public trial "
+                "documents."
             ) from error
 
 

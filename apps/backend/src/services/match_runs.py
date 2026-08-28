@@ -8,6 +8,7 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.criteria.parser_config import ELIGIBILITY_PARSER_CONFIGURATION
 from src.db.models import (
     Criterion,
     CriterionResult,
@@ -27,13 +28,14 @@ from src.retrieval.fusion import (
     RECIPROCAL_RANK_FUSION_RANK_CONSTANT,
     RECIPROCAL_RANK_FUSION_VERSION,
 )
+from src.retrieval.reranking import STRUCTURED_EVIDENCE_RERANKER_VERSION
 from src.retrieval.semantic_config import SEMANTIC_EMBEDDING_MODEL
 from src.trials.extraction import TrialExtractionError, extract_trial_fields
 
 MAX_MATCH_RUN_CANDIDATES = 100
-HYBRID_RETRIEVAL_VERSION = "lexical-semantic-rrf-v1"
+HYBRID_RETRIEVAL_VERSION = "lexical-semantic-rrf-structured-reranker-v1"
 _MATCH_RUN_VERSIONS = {
-    "parser": "manual-v1",
+    "parser": ELIGIBILITY_PARSER_CONFIGURATION.parser_version,
     "retrieval": HYBRID_RETRIEVAL_VERSION,
     "rule_engine": "deterministic-v1",
     "terminology_mapping": "source-coded-v1",
@@ -230,6 +232,12 @@ def _configuration_snapshot(patient_import_id: UUID) -> dict[str, object]:
             "method": RECIPROCAL_RANK_FUSION_VERSION,
             "rank_constant": RECIPROCAL_RANK_FUSION_RANK_CONSTANT,
         },
+        "second_stage_reranker": {
+            "method": STRUCTURED_EVIDENCE_RERANKER_VERSION,
+            "policy": "direct-support-promotes-unknown-neutral-v1",
+            "documented_conflicts": "filtered-before-reranking-v1",
+        },
         "embedding_model": SEMANTIC_EMBEDDING_MODEL.snapshot(),
+        "criterion_parser": ELIGIBILITY_PARSER_CONFIGURATION.snapshot(),
         "versions": _MATCH_RUN_VERSIONS,
     }

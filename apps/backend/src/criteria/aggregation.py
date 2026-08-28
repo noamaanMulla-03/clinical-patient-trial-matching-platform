@@ -56,6 +56,9 @@ def _outcome_for(
     result_ids = {result.criterion_id for result in results}
     if (
         not criteria
+        # Treat parser review requirements as an aggregation boundary too. This
+        # prevents direct result writes from bypassing the parser acceptance gate.
+        or any(criterion.requires_human_review for criterion in criteria)
         or result_ids != set(criterion_categories)
         or any(
             result.requires_review or result.outcome in {"unknown", "conflicting"}

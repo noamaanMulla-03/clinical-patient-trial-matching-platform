@@ -13,10 +13,16 @@ from src.criteria.api_schemas import (
     CriterionDetailResponse,
     CriterionEvaluationResponse,
     CriterionSourceResponse,
+    ParserProvenanceResponse,
+    ReviewCorrectionReason,
     ReviewCorrectionRequest,
     ReviewCorrectionResponse,
 )
-from src.criteria.schemas import CriterionCategory, CriterionOutcome
+from src.criteria.schemas import (
+    CriterionCategory,
+    CriterionOutcome,
+    CriterionReviewReason,
+)
 from src.db.models import (
     Criterion,
     CriterionResult,
@@ -25,6 +31,7 @@ from src.db.models import (
     PatientImport,
     ReviewDecision,
     TrialMatch,
+    TrialParserRun,
 )
 from src.fhir.schemas import (
     ClinicalCode,
@@ -59,6 +66,11 @@ async def retrieve_criterion_detail(
         )
     )
     evidence = await _evidence_for_result(session, result, patient_import.id)
+    parser_run = await session.scalar(
+        select(TrialParserRun).where(
+            TrialParserRun.trial_version_id == criterion.trial_version_id
+        )
+    )
     current_outcome = _current_outcome(result.outcome, decisions)
     audit_history = [
         CriterionAuditEventResponse(
@@ -67,7 +79,7 @@ async def retrieve_criterion_detail(
             occurred_at=result.evaluated_at,
             actor_id=f"evaluator:{result.evaluator_version}",
             outcome=cast(CriterionOutcome, result.outcome),
-            reason=result.explanation,
+            reason_code=result.explanation,
             evaluation_path=result.evaluation_path,
         ),
         *[
@@ -78,7 +90,7 @@ async def retrieve_criterion_detail(
                 actor_id=decision.reviewer_id,
                 outcome=cast(CriterionOutcome, decision.corrected_outcome),
                 previous_outcome=cast(CriterionOutcome, decision.previous_outcome),
-                reason=decision.reason,
+                reason_code=_safe_reason_code(decision.reason_code),
             )
             for decision in decisions
         ],
@@ -96,7 +108,22 @@ async def retrieve_criterion_detail(
             parser_version=criterion.parser_version,
             parser_confidence=criterion.parser_confidence,
             requires_human_review=criterion.requires_human_review,
+            review_reasons=[
+                cast(CriterionReviewReason, reason)
+                for reason in criterion.review_reasons
+            ],
             created_at=criterion.created_at,
+        ),
+        parser_provenance=(
+            ParserProvenanceResponse(
+                parser_version=parser_run.parser_version,
+                prompt_version=parser_run.prompt_version,
+                model_configuration_version=parser_run.model_configuration_version,
+                raw_output=parser_run.raw_output,
+                created_at=parser_run.created_at,
+            )
+            if parser_run is not None
+            else None
         ),
         evaluation=CriterionEvaluationResponse(
             id=result.id,
@@ -118,6 +145,7 @@ async def append_reviewer_correction(
     session: AsyncSession,
     *,
     criterion_result_id: UUID,
+    reviewer_id: str,
     correction: ReviewCorrectionRequest,
 ) -> ReviewCorrectionResponse:
     """Append a reviewer correction without overwriting deterministic provenance."""
@@ -139,10 +167,10 @@ async def append_reviewer_correction(
     decision = ReviewDecision(
         id=uuid4(),
         criterion_result_id=result.id,
-        reviewer_id=correction.reviewer_id,
+        reviewer_id=reviewer_id,
         previous_outcome=previous_outcome,
         corrected_outcome=correction.corrected_outcome,
-        reason=correction.reason,
+        reason_code=correction.reason_code,
     )
     session.add(decision)
     await session.flush()
@@ -152,9 +180,22 @@ async def append_reviewer_correction(
         reviewer_id=decision.reviewer_id,
         previous_outcome=cast(CriterionOutcome, decision.previous_outcome),
         corrected_outcome=cast(CriterionOutcome, decision.corrected_outcome),
-        reason=decision.reason,
+        reason_code=cast(ReviewCorrectionReason, decision.reason_code),
         created_at=decision.created_at,
     )
+
+
+def _safe_reason_code(value: str) -> str:
+    """Hide legacy free text without rewriting immutable audit history."""
+    accepted = {
+        "evidence_missing",
+        "evidence_conflicting",
+        "evidence_stale",
+        "source_span_issue",
+        "source_data_issue",
+        "other_nonclinical_review_issue",
+    }
+    return value if value in accepted else "legacy_reason_redacted"
 
 
 async def _detail_context(

@@ -351,6 +351,34 @@ class Criterion(Base):
     requires_human_review: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default="false"
     )
+    review_reasons: Mapped[list[str]] = mapped_column(
+        JSONB, nullable=False, server_default="[]"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class TrialParserRun(Base):
+    """Immutable parser provenance and output for one public trial snapshot."""
+
+    __tablename__ = "trial_parser_runs"
+    __table_args__ = (
+        Index("uq_trial_parser_runs_trial_version_id", "trial_version_id", unique=True),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4
+    )
+    trial_version_id: Mapped[UUID] = mapped_column(
+        ForeignKey("trial_versions.id", ondelete="RESTRICT"), nullable=False
+    )
+    parser_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    prompt_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    model_configuration_version: Mapped[str] = mapped_column(
+        String(128), nullable=False
+    )
+    raw_output: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -519,6 +547,14 @@ class ReviewDecision(Base):
             "previous_outcome <> corrected_outcome",
             name="ck_review_decisions_outcome_changed",
         ),
+        CheckConstraint(
+            "reason IN ("
+            "'evidence_missing', 'evidence_conflicting', 'evidence_stale', "
+            "'source_span_issue', 'source_data_issue', "
+            "'other_nonclinical_review_issue'"
+            ")",
+            name="ck_review_decisions_reason_code",
+        ),
         Index(
             "ix_review_decisions_criterion_result_id_created_at",
             "criterion_result_id",
@@ -535,7 +571,7 @@ class ReviewDecision(Base):
     reviewer_id: Mapped[str] = mapped_column(String(128), nullable=False)
     previous_outcome: Mapped[str] = mapped_column(String(16), nullable=False)
     corrected_outcome: Mapped[str] = mapped_column(String(16), nullable=False)
-    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    reason_code: Mapped[str] = mapped_column("reason", Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

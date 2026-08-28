@@ -10,7 +10,9 @@ import pytest
 from src.criteria.aggregation import _outcome_for
 from src.db.models import Criterion, CriterionResult
 from src.evaluation.runner import (
+    compare_held_out_retrieval_dataset,
     evaluate_criteria_dataset,
+    evaluate_parser_dataset,
     evaluate_retrieval_dataset,
     verify_frozen_dataset,
 )
@@ -30,7 +32,30 @@ def test_frozen_demo_files_and_deterministic_configuration_are_unchanged() -> No
         "semantic_retrieval": "not-used-v1",
         "terminology_mapping": "source-coded-v1",
     }
-    assert report["verified_files"] == ["criteria.json", "retrieval.json"]
+    assert report["verified_files"] == [
+        "criteria.json",
+        "heldout-retrieval.json",
+        "parser.json",
+        "retrieval.json",
+    ]
+
+
+@pytest.mark.evaluation
+def test_parser_baseline_is_measured_without_retrieval_or_matching() -> None:
+    report = evaluate_parser_dataset(_FROZEN_DEMO / "parser.json")
+
+    assert report["evaluation"] == "eligibility-parser"
+    assert report["case_count"] == 5
+    assert report["scope"] == (
+        "eligibility text to atomic criteria only; excludes retrieval, patient facts, "
+        "criterion evaluation, and final match aggregation"
+    )
+    assert report["metrics"] == {
+        "source_span": {"precision": 1.0, "recall": 1.0, "f1": 1.0},
+        "atomic_rule": {"precision": 1.0, "recall": 1.0, "f1": 1.0},
+        "review_signal": {"precision": 1.0, "recall": 1.0, "f1": 1.0},
+        "abstention_accuracy": 1.0,
+    }
 
 
 @pytest.mark.evaluation
@@ -52,6 +77,19 @@ def test_lexical_baseline_is_measured_and_has_no_hidden_model_stage() -> None:
         "mean_latency_ms": pytest.approx(report["metrics"]["mean_latency_ms"]),
     }
     assert report["metrics"]["mean_latency_ms"] >= 0
+
+
+@pytest.mark.evaluation
+def test_hybrid_retrieval_regression_improves_ndcg_without_worsening_exclusions() -> (
+    None
+):
+    report = compare_held_out_retrieval_dataset(_FROZEN_DEMO / "heldout-retrieval.json")
+
+    assert report["acceptance"]["agreed_metric"] == "nDCG@5"
+    assert report["acceptance"]["observed_improvement"] > 0
+    assert report["acceptance"]["observed_excluded_trial_rate_top_10_increase"] <= 0
+    assert report["acceptance"]["claimable"] is False
+    assert report["acceptance"]["passed"] is False
 
 
 @pytest.mark.evaluation

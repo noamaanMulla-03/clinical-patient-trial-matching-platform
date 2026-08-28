@@ -7,10 +7,23 @@ from decimal import Decimal
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field
 
-from src.criteria.schemas import CriterionCategory, CriterionOutcome
+from src.criteria.schemas import (
+    CriterionCategory,
+    CriterionOutcome,
+    CriterionReviewReason,
+)
 from src.fhir.schemas import PatientFactResponse
+
+ReviewCorrectionReason = Literal[
+    "evidence_missing",
+    "evidence_conflicting",
+    "evidence_stale",
+    "source_span_issue",
+    "source_data_issue",
+    "other_nonclinical_review_issue",
+]
 
 
 class CriterionSourceResponse(BaseModel):
@@ -25,6 +38,17 @@ class CriterionSourceResponse(BaseModel):
     parser_version: str
     parser_confidence: Decimal | None = None
     requires_human_review: bool
+    review_reasons: list[CriterionReviewReason]
+    created_at: datetime
+
+
+class ParserProvenanceResponse(BaseModel):
+    """Versioned deterministic parser output retained with a public trial source."""
+
+    parser_version: str
+    prompt_version: str
+    model_configuration_version: str
+    raw_output: dict[str, Any]
     created_at: datetime
 
 
@@ -51,7 +75,7 @@ class CriterionAuditEventResponse(BaseModel):
     actor_id: str
     outcome: CriterionOutcome
     previous_outcome: CriterionOutcome | None = None
-    reason: str
+    reason_code: str
     evaluation_path: str | None = None
 
 
@@ -61,6 +85,7 @@ class CriterionDetailResponse(BaseModel):
     patient_id: str
     trial_match_id: UUID
     criterion: CriterionSourceResponse
+    parser_provenance: ParserProvenanceResponse | None = None
     evaluation: CriterionEvaluationResponse
     patient_evidence: list[PatientFactResponse]
     audit_history: list[CriterionAuditEventResponse]
@@ -71,14 +96,8 @@ class ReviewCorrectionRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    reviewer_id: str = Field(min_length=1, max_length=128)
     corrected_outcome: CriterionOutcome
-    reason: str = Field(min_length=3, max_length=2000)
-
-    @field_validator("reviewer_id", "reason", mode="before")
-    @classmethod
-    def normalize_reviewer_text(cls, value: Any) -> Any:
-        return " ".join(value.split()) if isinstance(value, str) else value
+    reason_code: ReviewCorrectionReason
 
 
 class ReviewCorrectionResponse(BaseModel):
@@ -89,5 +108,5 @@ class ReviewCorrectionResponse(BaseModel):
     reviewer_id: str
     previous_outcome: CriterionOutcome
     corrected_outcome: CriterionOutcome
-    reason: str
+    reason_code: ReviewCorrectionReason
     created_at: datetime

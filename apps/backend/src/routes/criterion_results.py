@@ -15,6 +15,7 @@ from src.criteria.api_schemas import (
 )
 from src.db.session import get_database_session
 from src.errors import OPENAPI_REQUEST_ID_RESPONSE_HEADER, APIError, APIErrorResponse
+from src.reviewer_auth import ReviewerIdentity, authenticated_reviewer
 from src.services.criterion_details import (
     CriterionDetailError,
     CriterionDetailNotFoundError,
@@ -24,6 +25,7 @@ from src.services.criterion_details import (
 
 router = APIRouter(tags=["criterion-results"])
 DatabaseSession = Annotated[AsyncSession, Depends(get_database_session)]
+AuthenticatedReviewer = Annotated[ReviewerIdentity, Depends(authenticated_reviewer)]
 
 
 @router.get(
@@ -78,11 +80,22 @@ async def get_criterion_result_detail(
             "model": APIErrorResponse,
             "headers": {"X-Request-ID": OPENAPI_REQUEST_ID_RESPONSE_HEADER},
         },
+        401: {
+            "description": "A valid reviewer credential is required.",
+            "model": APIErrorResponse,
+            "headers": {"X-Request-ID": OPENAPI_REQUEST_ID_RESPONSE_HEADER},
+        },
+        503: {
+            "description": "Reviewer correction authentication is not configured.",
+            "model": APIErrorResponse,
+            "headers": {"X-Request-ID": OPENAPI_REQUEST_ID_RESPONSE_HEADER},
+        },
     },
 )
 async def append_criterion_reviewer_correction_route(
     criterion_result_id: UUID,
     correction: ReviewCorrectionRequest,
+    reviewer: AuthenticatedReviewer,
     session: DatabaseSession,
 ) -> ReviewCorrectionResponse:
     """Persist a correction as a new immutable history item, never an overwrite."""
@@ -91,6 +104,7 @@ async def append_criterion_reviewer_correction_route(
             return await append_reviewer_correction(
                 session,
                 criterion_result_id=criterion_result_id,
+                reviewer_id=reviewer.actor_id,
                 correction=correction,
             )
     except CriterionDetailNotFoundError as error:

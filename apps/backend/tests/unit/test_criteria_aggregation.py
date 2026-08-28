@@ -41,3 +41,17 @@ def test_aggregation_uses_only_the_four_bounded_match_states() -> None:
         == "needs_review"
     )
     assert _outcome_for([inclusion], []) == "needs_review"
+
+
+def test_aggregation_keeps_parser_gated_criteria_in_review() -> None:
+    parsed_criterion = Criterion(
+        id=uuid4(), category="inclusion", requires_human_review=True
+    )
+
+    assert (
+        _outcome_for(
+            [parsed_criterion],
+            [_result(parsed_criterion, outcome="met", requires_review=False)],
+        )
+        == "needs_review"
+    )
