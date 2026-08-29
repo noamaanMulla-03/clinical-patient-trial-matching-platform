@@ -52,9 +52,9 @@ def score_trial_candidate(
     }
 
 
-def rank_scored_trials(
-    scored_trials: Iterable[tuple[SearchableTrial, dict[str, Any]]],
-) -> list[tuple[SearchableTrial, dict[str, Any]]]:
+def rank_scored_trials[SearchableTrialType: SearchableTrial](
+    scored_trials: Iterable[tuple[SearchableTrialType, dict[str, Any]]],
+) -> list[tuple[SearchableTrialType, dict[str, Any]]]:
     """Rank deterministically so reruns are reproducible for the same snapshots."""
     return sorted(
         scored_trials,

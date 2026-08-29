@@ -17,7 +17,6 @@ from src.criteria.eligibility_parser import (
 from src.criteria.evaluation import evaluate_atomic_criterion
 from src.criteria.parser_config import ELIGIBILITY_PARSER_CONFIGURATION
 from src.criteria.schemas import AtomicCriterion
-from src.db.models import Trial
 from src.evaluation.metrics import (
     label_recall,
     macro_f1,
@@ -39,6 +38,7 @@ from src.retrieval.schemas import PatientDerivedRetrievalQuery, RetrievalTerm
 from src.retrieval.scoring import rank_scored_trials, score_trial_candidate
 from src.retrieval.semantic import SemanticTrialCandidate
 from src.retrieval.semantic_config import SEMANTIC_EMBEDDING_MODEL
+from src.retrieval.trial_documents import TrialSearchDocument
 
 
 class EvaluationDatasetError(ValueError):
@@ -458,8 +458,8 @@ def verify_frozen_dataset(manifest_path: Path) -> dict[str, Any]:
 
 
 def _rank_lexical_trials(
-    trials: Iterable[Trial], query: PatientDerivedRetrievalQuery
-) -> list[tuple[Trial, dict[str, Any]]]:
+    trials: Iterable[TrialSearchDocument], query: PatientDerivedRetrievalQuery
+) -> list[tuple[TrialSearchDocument, dict[str, Any]]]:
     scored = (
         (trial, score)
         for trial in trials
@@ -677,11 +677,11 @@ def _precomputed_semantic_candidates(
     topic: dict[str, Any],
     *,
     topic_id: str,
-    trials_by_nct: dict[str, Trial],
+    trials_by_nct: dict[str, TrialSearchDocument],
     candidate_limit: int,
-) -> tuple[SemanticTrialCandidate, ...]:
+) -> tuple[SemanticTrialCandidate[TrialSearchDocument], ...]:
     source_ids = _required_list(topic, "semantic_ranked_nct_ids")[:candidate_limit]
-    candidates: list[SemanticTrialCandidate] = []
+    candidates: list[SemanticTrialCandidate[TrialSearchDocument]] = []
     seen_ids: set[str] = set()
     for rank, nct_id in enumerate(source_ids, 1):
         if not isinstance(nct_id, str) or not nct_id.strip():
@@ -745,18 +745,24 @@ def _mean_retrieval_metrics(topic_results: list[dict[str, Any]]) -> dict[str, fl
     return metrics
 
 
-def _trial_from_payload(payload: object) -> Trial:
+def _trial_from_payload(payload: object) -> TrialSearchDocument:
     if not isinstance(payload, dict):
         raise EvaluationDatasetError("Each trial must be an object.")
     nct_id = _required_text(payload, "nct_id")
-    return Trial(
+    return TrialSearchDocument(
         nct_id=nct_id,
         title=_optional_text(payload.get("title")),
         conditions=_string_list(payload.get("conditions", []), field="conditions"),
         interventions=_object_list(
             payload.get("interventions", []), field="interventions"
         ),
+        status=None,
+        phases=[],
         eligibility_text=_optional_text(payload.get("eligibility_text")),
+        minimum_age=None,
+        maximum_age=None,
+        sex=None,
+        locations=[],
     )
 
 

@@ -13,17 +13,38 @@ from src.trials.extraction import TrialExtractionError, extract_trial_fields
 class SearchableTrial(Protocol):
     """Fields shared by current projections and immutable version views."""
 
-    nct_id: str
-    title: str | None
-    conditions: list[str]
-    interventions: list[dict[str, Any]]
-    status: str | None
-    phases: list[str]
-    eligibility_text: str | None
-    minimum_age: str | None
-    maximum_age: str | None
-    sex: str | None
-    locations: list[dict[str, Any]]
+    @property
+    def nct_id(self) -> str: ...
+
+    @property
+    def title(self) -> str | None: ...
+
+    @property
+    def conditions(self) -> list[str]: ...
+
+    @property
+    def interventions(self) -> list[dict[str, Any]]: ...
+
+    @property
+    def status(self) -> str | None: ...
+
+    @property
+    def phases(self) -> list[str]: ...
+
+    @property
+    def eligibility_text(self) -> str | None: ...
+
+    @property
+    def minimum_age(self) -> str | None: ...
+
+    @property
+    def maximum_age(self) -> str | None: ...
+
+    @property
+    def sex(self) -> str | None: ...
+
+    @property
+    def locations(self) -> list[dict[str, Any]]: ...
 
 
 class TrialDocumentError(ValueError):
@@ -31,10 +52,9 @@ class TrialDocumentError(ValueError):
 
 
 @dataclass(frozen=True, slots=True)
-class TrialVersionDocument:
-    """Searchable fields derived from the exact immutable source version used."""
+class TrialSearchDocument:
+    """Immutable in-memory public-trial fields shared by retrieval callers."""
 
-    trial_version_id: UUID
     nct_id: str
     title: str | None
     conditions: list[str]
@@ -46,6 +66,13 @@ class TrialVersionDocument:
     maximum_age: str | None
     sex: str | None
     locations: list[dict[str, Any]]
+
+
+@dataclass(frozen=True, slots=True)
+class TrialVersionDocument(TrialSearchDocument):
+    """Searchable fields derived from the exact immutable source version used."""
+
+    trial_version_id: UUID
 
 
 def document_from_trial_version(version: TrialVersion) -> TrialVersionDocument:

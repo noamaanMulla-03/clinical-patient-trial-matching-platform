@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import UTC, datetime
+from typing import TypedDict
 from uuid import UUID
 
 from pydantic import ValidationError
@@ -39,7 +40,10 @@ from src.retrieval.semantic import (
     semantic_coverage,
     semantic_trial_candidates,
 )
-from src.retrieval.trial_documents import document_from_trial_version
+from src.retrieval.trial_documents import (
+    TrialVersionDocument,
+    document_from_trial_version,
+)
 from src.services.match_runs import (
     match_run_candidate_limit,
     match_run_catalogue_as_of,
@@ -53,6 +57,14 @@ class MatchRunJobError(ValueError):
 
 class MatchRunCancelledError(MatchRunJobError):
     """Raised internally when a worker reaches a cooperative cancellation boundary."""
+
+
+class SemanticCandidateState(TypedDict):
+    """Typed, non-clinical retrieval-mode metadata for one match run."""
+
+    mode: str
+    degradation_reasons: list[str]
+    coverage: dict[str, int]
 
 
 async def run_match_run_job(session: AsyncSession, match_run_id: UUID) -> MatchRun:
@@ -230,7 +242,9 @@ async def _semantic_candidates_or_empty(
     *,
     candidate_limit: int,
     catalogue_as_of: datetime,
-) -> tuple[tuple[SemanticTrialCandidate, ...], dict[str, object]]:
+) -> tuple[
+    tuple[SemanticTrialCandidate[TrialVersionDocument], ...], SemanticCandidateState
+]:
     """Return candidates plus an explicit, non-clinical degradation record."""
     coverage = await semantic_coverage(session, catalogue_as_of=catalogue_as_of)
     try:
@@ -322,7 +336,7 @@ def _coverage_payload(coverage: SemanticCoverage) -> dict[str, int]:
 
 def _omission_reasons(fact: PatientFact) -> list[str]:
     """Record safe query omissions without storing clinical values or text."""
-    issue_codes = sorted({issue.code for issue in fact.quality_issues})
+    issue_codes = sorted(str(issue.code) for issue in fact.quality_issues)
     return issue_codes or [f"unsupported_retrieval_fact_kind:{fact.kind}"]
 
 

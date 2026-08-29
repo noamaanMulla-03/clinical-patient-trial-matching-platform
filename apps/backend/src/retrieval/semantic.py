@@ -20,6 +20,7 @@ from src.retrieval.schemas import PatientDerivedRetrievalQuery
 from src.retrieval.semantic_config import SEMANTIC_EMBEDDING_MODEL
 from src.retrieval.trial_documents import (
     SearchableTrial,
+    TrialVersionDocument,
     document_from_trial_version,
 )
 
@@ -33,10 +34,10 @@ class SemanticRetrievalIncompleteError(SemanticRetrievalError):
 
 
 @dataclass(frozen=True, slots=True)
-class SemanticTrialCandidate:
+class SemanticTrialCandidate[SemanticTrialType: SearchableTrial]:
     """One versioned public-trial snapshot retrieved by semantic similarity."""
 
-    trial: SearchableTrial
+    trial: SemanticTrialType
     score: float
     rank: int
 
@@ -63,7 +64,7 @@ async def semantic_trial_candidates(
     candidate_limit: int,
     catalogue_as_of: datetime,
     encoder: EmbeddingEncoder | None = None,
-) -> tuple[SemanticTrialCandidate, ...]:
+) -> tuple[SemanticTrialCandidate[TrialVersionDocument], ...]:
     """Retrieve current trial vectors with one in-memory synthetic-patient query.
 
     The query vector is deliberately never persisted. If no current public-trial

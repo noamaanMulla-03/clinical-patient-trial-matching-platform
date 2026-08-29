@@ -6,20 +6,21 @@ must remain explicitly marked as not clinician-reviewed until that review occurs
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 from uuid import NAMESPACE_URL, uuid5
 
 from src.criteria.evaluation import evaluate_atomic_criterion
-from src.criteria.schemas import AtomicCriterion
-from src.db.models import Trial
+from src.criteria.schemas import AtomicCriterion, CriterionEvaluation
 from src.evaluation.metrics import label_recall, macro_f1, mean
 from src.evaluation.runner import EvaluationDatasetError, read_json
 from src.fhir.importer import normalize_patient_resource
 from src.fhir.safety import require_synthetic_fhir_bundle
 from src.retrieval.query_builder import build_patient_retrieval_query
 from src.retrieval.scoring import rank_scored_trials, score_trial_candidate
+from src.retrieval.trial_documents import TrialSearchDocument
 
 
 def evaluate_synthetic_fhir_benchmark(path: Path) -> dict[str, Any]:
@@ -180,7 +181,7 @@ def evaluate_synthetic_fhir_benchmark(path: Path) -> dict[str, Any]:
     }
 
 
-def _aggregate(results: list[tuple[str, Any]]) -> str:
+def _aggregate(results: Sequence[tuple[str, CriterionEvaluation]]) -> str:
     if not results or any(
         evaluation.requires_review or evaluation.outcome in {"unknown", "conflicting"}
         for _, evaluation in results
@@ -222,18 +223,24 @@ def _as_of(payload: dict[str, Any]) -> date:
         ) from error
 
 
-def _trials(case: dict[str, Any], *, case_id: str) -> list[Trial]:
-    trials: list[Trial] = []
+def _trials(case: dict[str, Any], *, case_id: str) -> list[TrialSearchDocument]:
+    trials: list[TrialSearchDocument] = []
     for payload in _list(case, "trials"):
         if not isinstance(payload, dict):
             raise EvaluationDatasetError(f"Case {case_id} trial must be an object.")
         trials.append(
-            Trial(
+            TrialSearchDocument(
                 nct_id=_text(payload, "nct_id"),
                 title=_text(payload, "title"),
                 conditions=_string_list(payload.get("conditions")),
                 interventions=payload.get("interventions", []),
+                status=None,
+                phases=[],
                 eligibility_text=_text(payload, "eligibility_text"),
+                minimum_age=None,
+                maximum_age=None,
+                sex=None,
+                locations=[],
             )
         )
     return trials

@@ -23,12 +23,12 @@ _FIELDS_BY_TERM_KIND = {
 }
 
 
-def rerank_fused_trial_candidates(
-    ranked_trials: Sequence[tuple[SearchableTrial, dict[str, Any]]],
+def rerank_fused_trial_candidates[SearchableTrialType: SearchableTrial](
+    ranked_trials: Sequence[tuple[SearchableTrialType, dict[str, Any]]],
     query: PatientDerivedRetrievalQuery,
     *,
     candidate_limit: int,
-) -> list[tuple[SearchableTrial, dict[str, Any]]]:
+) -> list[tuple[SearchableTrialType, dict[str, Any]]]:
     """Prefer direct structured support while retaining unknown candidates.
 
     Full-text semantic retrieval supplies recall. This second stage gives a
@@ -42,7 +42,7 @@ def rerank_fused_trial_candidates(
     if candidate_limit < 1:
         raise ValueError("candidate_limit must be positive.")
 
-    reranked: list[tuple[SearchableTrial, dict[str, Any]]] = []
+    reranked: list[tuple[SearchableTrialType, dict[str, Any]]] = []
     for original_rank, (trial, scores) in enumerate(ranked_trials, 1):
         rationale = _structured_support_rationale(trial, query)
         reranked.append(
