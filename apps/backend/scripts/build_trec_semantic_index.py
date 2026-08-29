@@ -63,9 +63,7 @@ def main() -> int:
     encoder = configured_embedding_encoder()
     batch: list[tuple[str, dict[str, str]]] = []
     with identifiers_path.open("a" if completed else "w", encoding="utf-8") as ids_file:
-        for trial_index, trial in enumerate(
-            _iter_documents(archives)
-        ):
+        for trial_index, trial in enumerate(_iter_documents(archives)):
             if trial_index < completed:
                 continue
             batch.append(trial)
@@ -136,9 +134,7 @@ def _field_documents_from_xml(source: bytes) -> tuple[str, dict[str, str]]:
         raise ValueError("A TREC public-trial record is missing its NCT ID.")
     fields = {
         "title": root.findtext("brief_title") or "",
-        "conditions": " ".join(
-            value.text or "" for value in root.findall("condition")
-        ),
+        "conditions": " ".join(value.text or "" for value in root.findall("condition")),
         "interventions": " ".join(
             value
             for intervention in root.findall("intervention")

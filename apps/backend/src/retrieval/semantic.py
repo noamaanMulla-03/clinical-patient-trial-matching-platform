@@ -133,7 +133,9 @@ async def semantic_coverage(
     """Count model coverage for the catalogue visible to one match run."""
     current_trial_count = int(
         await session.scalar(
-            select(func.count()).select_from(TrialVersion).where(
+            select(func.count())
+            .select_from(TrialVersion)
+            .where(
                 TrialVersion.ingested_at <= catalogue_as_of,
                 (TrialVersion.superseded_at.is_(None))
                 | (TrialVersion.superseded_at > catalogue_as_of),
@@ -143,9 +145,10 @@ async def semantic_coverage(
     )
     embedded_trial_count = int(
         await session.scalar(
-            select(func.count()).select_from(TrialEmbedding).join(
-                TrialVersion, TrialVersion.id == TrialEmbedding.trial_version_id
-            ).where(
+            select(func.count())
+            .select_from(TrialEmbedding)
+            .join(TrialVersion, TrialVersion.id == TrialEmbedding.trial_version_id)
+            .where(
                 TrialVersion.ingested_at <= catalogue_as_of,
                 (TrialVersion.superseded_at.is_(None))
                 | (TrialVersion.superseded_at > catalogue_as_of),

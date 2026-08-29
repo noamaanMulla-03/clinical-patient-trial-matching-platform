@@ -159,7 +159,10 @@ def main() -> int:
         query = numpy.asarray(encoder.encode(text), dtype=numpy.float32)
         started = time.perf_counter()
         semantic_ids = _semantic_ids(
-            vectors, query=query, ids=ids, field_weights=field_weights,
+            vectors,
+            query=query,
+            ids=ids,
+            field_weights=field_weights,
             fusion=args.semantic_field_fusion,
         )
         elapsed = (time.perf_counter() - started) * 1000
@@ -171,7 +174,9 @@ def main() -> int:
             lexical_ids = [nct_id for nct_id in lexical_ids if nct_id in available_ids]
         lexical_results.append(_result(topic_id, lexical_ids, qrels[topic_id], 0.0))
         hybrid_ids = _fuse(
-            lexical_ids, semantic_ids, lexical_weight=args.lexical_weight,
+            lexical_ids,
+            semantic_ids,
+            lexical_weight=args.lexical_weight,
             semantic_weight=args.semantic_weight,
         )
         hybrid_ids_by_topic[topic_id] = hybrid_ids
@@ -290,9 +295,7 @@ def _semantic_vectors(
         for field_name in _FIELD_WEIGHTS:
             entry = files.get(field_name)
             if not isinstance(entry, dict):
-                raise SystemExit(
-                    f"The fielded semantic index is missing {field_name}."
-                )
+                raise SystemExit(f"The fielded semantic index is missing {field_name}.")
             file_name = entry.get("file")
             if not isinstance(file_name, str) or not file_name:
                 raise SystemExit(
@@ -374,8 +377,12 @@ def _field_weights(overrides: list[str]) -> dict[str, float]:
 
 
 def _semantic_ids(
-    vectors: dict[str, numpy.memmap], *, query: numpy.ndarray, ids: list[str],
-    field_weights: dict[str, float], fusion: str,
+    vectors: dict[str, numpy.memmap],
+    *,
+    query: numpy.ndarray,
+    ids: list[str],
+    field_weights: dict[str, float],
+    fusion: str,
 ) -> list[str]:
     full_text = vectors.get("full_text")
     if full_text is not None:
@@ -417,7 +424,10 @@ def _fuse_ranked_lists(ranked_lists: list[tuple[list[str], float]]) -> list[str]
 
 
 def _fuse(
-    lexical: list[str], semantic: list[str], *, lexical_weight: float = 1.0,
+    lexical: list[str],
+    semantic: list[str],
+    *,
+    lexical_weight: float = 1.0,
     semantic_weight: float = 1.0,
 ) -> list[str]:
     scores: dict[str, float] = {}

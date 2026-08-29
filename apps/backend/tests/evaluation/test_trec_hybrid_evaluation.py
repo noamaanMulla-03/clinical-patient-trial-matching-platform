@@ -80,10 +80,13 @@ def test_legacy_full_text_index_is_explicitly_not_field_weighted(tmp_path) -> No
     )
 
     assert representation == "legacy-combined-public-trial-text"
-    assert _semantic_ids(
-        vectors,
-        query=numpy.asarray([1.0] + [0.0] * 767, dtype=numpy.float32),
-        ids=[f"NCT{index:08d}" for index in range(100)],
-        field_weights=_field_weights([]),
-        fusion="weighted-rrf",
-    )[0] == "NCT00000000"
+    assert (
+        _semantic_ids(
+            vectors,
+            query=numpy.asarray([1.0] + [0.0] * 767, dtype=numpy.float32),
+            ids=[f"NCT{index:08d}" for index in range(100)],
+            field_weights=_field_weights([]),
+            fusion="weighted-rrf",
+        )[0]
+        == "NCT00000000"
+    )

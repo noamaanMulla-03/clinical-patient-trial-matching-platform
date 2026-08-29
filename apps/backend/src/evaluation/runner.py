@@ -131,9 +131,7 @@ def evaluate_retrieval_dataset(path: Path) -> dict[str, Any]:
                     relevances, total_relevant=eligible_count, k=50
                 ),
                 "MRR": reciprocal_rank(relevances),
-                "trec_grade_1_rate_top_10": trec_grade_1_rate_at_k(
-                    relevances, k=10
-                ),
+                "trec_grade_1_rate_top_10": trec_grade_1_rate_at_k(relevances, k=10),
             }
         )
 

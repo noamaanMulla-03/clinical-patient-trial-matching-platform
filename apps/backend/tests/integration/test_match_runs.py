@@ -166,9 +166,7 @@ def test_worker_persists_ranked_trial_versions_for_one_immutable_patient_import(
             "as_of": run.configuration_snapshot["catalogue_as_of"],
             "policy": "immutable-trial-version-as-of-v1",
         }
-        assert completed_run.retrieval_execution["query_manifest"][
-            "included_fact_ids"
-        ]
+        assert completed_run.retrieval_execution["query_manifest"]["included_fact_ids"]
         evidence_fact_ids = fixture_result.retrieval_scores["matched_fact_ids"]
         assert evidence_fact_ids
         assert set(evidence_fact_ids) <= fact_ids
@@ -217,6 +215,7 @@ def test_worker_uses_semantic_only_candidate_when_lexical_has_no_match(
             },
             retrieved_at=datetime(2026, 8, 25, tzinfo=UTC),
         )
+
         async def semantic_only(
             *_: object, **__: object
         ) -> tuple[SemanticTrialCandidate, ...]:

@@ -183,14 +183,14 @@ async def match_run_results(
             continue
         title, study_status = _trial_display_metadata(version)
         response = TrialMatchResponse.from_record(
-                match,
-                patient_id=patient_import.patient_id,
-                nct_id=version.nct_id,
-                title=title,
-                study_status=study_status,
-                source_updated_at=version.source_updated_at,
-                criterion_results=criterion_summaries.get(match.id, []),
-            )
+            match,
+            patient_id=patient_import.patient_id,
+            nct_id=version.nct_id,
+            title=title,
+            study_status=study_status,
+            source_updated_at=version.source_updated_at,
+            criterion_results=criterion_summaries.get(match.id, []),
+        )
         response.outcome = _current_assessment_outcome(
             criterion_summaries.get(match.id, [])
         )
@@ -207,8 +207,7 @@ def _current_assessment_outcome(
     new conservative display outcome, never make unsupported evidence reassuring.
     """
     if not results or any(
-        result.requires_review
-        or result.current_outcome in {"unknown", "conflicting"}
+        result.requires_review or result.current_outcome in {"unknown", "conflicting"}
         for result in results
     ):
         return "needs_review"

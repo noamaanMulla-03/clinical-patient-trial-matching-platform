@@ -66,50 +66,49 @@ async def _evaluate(args: argparse.Namespace) -> None:
             connection.begin(),
             AsyncSession(bind=connection) as session,
         ):
-                count = await current_catalogue_trial_count(
-                    session, catalogue_as_of=catalogue_as_of
+            count = await current_catalogue_trial_count(
+                session, catalogue_as_of=catalogue_as_of
+            )
+            if count != args.expected_trial_count:
+                raise SystemExit(
+                    "The benchmark database must contain exactly "
+                    f"{args.expected_trial_count} current frozen trials; "
+                    f"found {count}."
                 )
-                if count != args.expected_trial_count:
+            encoder = configured_embedding_encoder()
+            rows: dict[str, list[dict[str, object]]] = {
+                "lexical": [],
+                "semantic": [],
+                "hybrid": [],
+                "final_ordering": [],
+            }
+            for topic_id, text in topics:
+                query = _query(topic_id, text)
+                candidates = await retrieve_application_path_candidates(
+                    session,
+                    query,
+                    catalogue_as_of=catalogue_as_of,
+                    encoder=encoder,
+                )
+                if candidates.mode != "hybrid":
                     raise SystemExit(
-                        "The benchmark database must contain exactly "
-                        f"{args.expected_trial_count} current frozen trials; "
-                        f"found {count}."
+                        "Semantic branch was unavailable for topic "
+                        f"{topic_id}: {candidates.mode}"
                     )
-                encoder = configured_embedding_encoder()
-                rows: dict[str, list[dict[str, object]]] = {
-                    "lexical": [],
-                    "semantic": [],
-                    "hybrid": [],
-                    "final_ordering": [],
-                }
-                for topic_id, text in topics:
-                    query = _query(topic_id, text)
-                    candidates = await retrieve_application_path_candidates(
-                        session,
-                        query,
-                        catalogue_as_of=catalogue_as_of,
-                        encoder=encoder,
-                    )
-                    if candidates.mode != "hybrid":
-                        raise SystemExit(
-                            "Semantic branch was unavailable for topic "
-                            f"{topic_id}: {candidates.mode}"
-                        )
-                    for name, ranked in (
-                        ("lexical", candidates.lexical_nct_ids),
-                        ("semantic", candidates.semantic_nct_ids),
-                        ("hybrid", candidates.hybrid_nct_ids),
-                        ("final_ordering", candidates.final_nct_ids),
-                    ):
-                        rows[name].append(_result(topic_id, ranked, qrels[topic_id]))
+                for name, ranked in (
+                    ("lexical", candidates.lexical_nct_ids),
+                    ("semantic", candidates.semantic_nct_ids),
+                    ("hybrid", candidates.hybrid_nct_ids),
+                    ("final_ordering", candidates.final_nct_ids),
+                ):
+                    rows[name].append(_result(topic_id, ranked, qrels[topic_id]))
     finally:
         await engine.dispose()
     report = {
         "evaluation": "trec-live-postgresql-retrieval-path",
         "claimable": False,
         "scope": (
-            "public TREC token adapter; no FHIR patient data or eligibility "
-            "decision"
+            "public TREC token adapter; no FHIR patient data or eligibility decision"
         ),
         "catalogue_as_of": catalogue_as_of.isoformat(),
         "trial_count": args.expected_trial_count,

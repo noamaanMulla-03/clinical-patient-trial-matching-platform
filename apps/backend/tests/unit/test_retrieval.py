@@ -103,9 +103,7 @@ def test_patient_query_uses_only_active_documented_facts_and_exact_demographics(
     }
 
 
-def test_stale_active_conditions_support_retrieval_without_becoming_a_filter() -> (
-    None
-):
+def test_stale_active_conditions_support_retrieval_without_becoming_a_filter() -> None:
     query = build_patient_retrieval_query(
         [
             _fact(
