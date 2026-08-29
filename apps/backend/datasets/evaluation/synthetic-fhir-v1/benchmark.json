@@ -1,0 +1,114 @@
+{
+  "schema_version": "synthetic-fhir-v1",
+  "as_of": "2026-08-23",
+  "review_limit": 10,
+  "configuration": {
+    "annotation_status": "engineering_annotated_not_clinician_reviewed",
+    "retrieval": "lexical-v1",
+    "rule_engine": "deterministic-v1",
+    "patient_input": "synthetic-fhir-r4"
+  },
+  "cases": [
+    {
+      "id": "adult-diabetes",
+      "bundle": {
+        "resourceType": "Bundle",
+        "type": "collection",
+        "meta": {"tag": [{"system": "urn:clinical-trial-matcher:data-classification", "code": "synthetic-data"}]},
+        "entry": [
+          {"resource": {"resourceType": "Patient", "id": "benchmark-adult", "birthDate": "1980-08-23", "gender": "female"}},
+          {"resource": {"resourceType": "Condition", "id": "adult-diabetes", "subject": {"reference": "Patient/benchmark-adult"}, "clinicalStatus": {"coding": [{"code": "active"}]}, "code": {"coding": [{"system": "http://snomed.info/sct", "code": "44054006", "display": "Diabetes mellitus"}]}, "onsetDateTime": "2026-01-15"}}
+        ]
+      },
+      "expected_candidates": ["NCT91000001", "NCT91000002"],
+      "trials": [
+        {
+          "nct_id": "NCT91000001",
+          "title": "Adult diabetes study",
+          "conditions": ["Diabetes mellitus"],
+          "interventions": [],
+          "eligibility_text": "Adults with diabetes mellitus.",
+          "criteria": [
+            {"criterion": {"category": "inclusion", "source_text": "Adults", "source_start": 0, "source_end": 6, "rule": {"kind": "age", "operator": "at_least", "years": 18}}, "expected_outcome": "met"},
+            {"criterion": {"category": "inclusion", "source_text": "diabetes mellitus", "source_start": 12, "source_end": 29, "rule": {"kind": "coded_condition", "code": {"system": "http://snomed.info/sct", "value": "44054006"}}}, "expected_outcome": "met"}
+          ],
+          "expected": {"outcome": "potential_match"}
+        },
+        {
+          "nct_id": "NCT91000002",
+          "title": "Diabetes exclusion study",
+          "conditions": ["Diabetes mellitus"],
+          "interventions": [],
+          "eligibility_text": "Diabetes",
+          "criteria": [
+            {"criterion": {"category": "exclusion", "source_text": "Diabetes", "source_start": 0, "source_end": 8, "rule": {"kind": "coded_condition", "code": {"system": "http://snomed.info/sct", "value": "44054006"}}}, "expected_outcome": "not_met"}
+          ],
+          "expected": {"outcome": "likely_excluded"}
+        },
+        {
+          "nct_id": "NCT91000003",
+          "title": "Asthma study",
+          "conditions": ["Asthma"],
+          "interventions": [],
+          "eligibility_text": "Asthma",
+          "criteria": [],
+          "expected": {"outcome": "not_retrieved"}
+        }
+      ]
+    },
+    {
+      "id": "stale-diabetes",
+      "bundle": {
+        "resourceType": "Bundle",
+        "type": "collection",
+        "meta": {"tag": [{"system": "urn:clinical-trial-matcher:data-classification", "code": "synthetic-data"}]},
+        "entry": [
+          {"resource": {"resourceType": "Patient", "id": "benchmark-stale", "birthDate": "1980-08-23", "gender": "female"}},
+          {"resource": {"resourceType": "Condition", "id": "stale-diabetes", "subject": {"reference": "Patient/benchmark-stale"}, "clinicalStatus": {"coding": [{"code": "active"}]}, "code": {"coding": [{"system": "http://snomed.info/sct", "code": "44054006", "display": "Diabetes mellitus"}]}, "onsetDateTime": "2020-01-15"}}
+        ]
+      },
+      "expected_candidates": ["NCT91000004"],
+      "trials": [
+        {
+          "nct_id": "NCT91000004",
+          "title": "Diabetes evidence study",
+          "conditions": ["Diabetes mellitus"],
+          "interventions": [],
+          "eligibility_text": "Diabetes",
+          "criteria": [
+            {"criterion": {"category": "inclusion", "source_text": "Diabetes", "source_start": 0, "source_end": 8, "rule": {"kind": "coded_condition", "code": {"system": "http://snomed.info/sct", "value": "44054006"}}}, "expected_outcome": "unknown"}
+          ],
+          "expected": {"outcome": "needs_review"}
+        }
+      ]
+    },
+    {
+      "id": "conflicting-glucose",
+      "bundle": {
+        "resourceType": "Bundle",
+        "type": "collection",
+        "meta": {"tag": [{"system": "urn:clinical-trial-matcher:data-classification", "code": "synthetic-data"}]},
+        "entry": [
+          {"resource": {"resourceType": "Patient", "id": "benchmark-glucose", "birthDate": "1980-08-23", "gender": "female"}},
+          {"resource": {"resourceType": "Condition", "id": "glucose-diabetes", "subject": {"reference": "Patient/benchmark-glucose"}, "clinicalStatus": {"coding": [{"code": "active"}]}, "code": {"coding": [{"system": "http://snomed.info/sct", "code": "44054006", "display": "Diabetes mellitus"}]}, "onsetDateTime": "2026-01-15"}},
+          {"resource": {"resourceType": "Observation", "id": "glucose-high", "subject": {"reference": "Patient/benchmark-glucose"}, "status": "final", "code": {"coding": [{"system": "http://loinc.org", "code": "2345-7"}]}, "effectiveDateTime": "2026-08-01", "valueQuantity": {"value": 9.0, "unit": "mmol/L"}}},
+          {"resource": {"resourceType": "Observation", "id": "glucose-low", "subject": {"reference": "Patient/benchmark-glucose"}, "status": "final", "code": {"coding": [{"system": "http://loinc.org", "code": "2345-7"}]}, "effectiveDateTime": "2026-08-02", "valueQuantity": {"value": 7.0, "unit": "mmol/L"}}}
+        ]
+      },
+      "expected_candidates": ["NCT91000005"],
+      "trials": [
+        {
+          "nct_id": "NCT91000005",
+          "title": "Diabetes glucose study",
+          "conditions": ["Diabetes mellitus"],
+          "interventions": [],
+          "eligibility_text": "Glucose >= 8 mmol/L",
+          "criteria": [
+            {"criterion": {"category": "inclusion", "source_text": "Glucose >= 8 mmol/L", "source_start": 0, "source_end": 19, "rule": {"kind": "numeric_lab_threshold", "code": {"system": "http://loinc.org", "value": "2345-7"}, "comparator": ">=", "threshold": 8.0, "unit": "mmol/L"}}, "expected_outcome": "conflicting"}
+          ],
+          "expected": {"outcome": "needs_review"}
+        }
+      ]
+    }
+  ]
+}

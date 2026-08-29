@@ -1,0 +1,15 @@
+{
+  "schema_version": "synthetic-fhir-v1",
+  "purpose": "Engineering-annotated synthetic FHIR regression fixture; not clinical validation.",
+  "configuration": {
+    "annotation_status": "engineering_annotated_not_clinician_reviewed",
+    "retrieval": "lexical-v1",
+    "rule_engine": "deterministic-v1"
+  },
+  "files": [
+    {
+      "path": "benchmark.json",
+      "sha256": "5bc3e7b5c68e4fd28a8aba14acda9664baf1fb3d97c54445bb1c79a3fef7f84a"
+    }
+  ]
+}

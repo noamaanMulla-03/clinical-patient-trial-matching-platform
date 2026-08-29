@@ -15,10 +15,14 @@ from src.evaluation.runner import (
     evaluate_retrieval_dataset,
     verify_frozen_dataset,
 )
+from src.evaluation.synthetic_fhir import evaluate_synthetic_fhir_benchmark
 from src.evaluation.trec import TrecEvaluationError, evaluate_trec_lexical_baseline
 
 _DEFAULT_DATASET_ROOT = Path("datasets/evaluation/frozen-demo")
 _DEFAULT_TREC_RAW_ROOT = Path("datasets/evaluation/trec/raw")
+_DEFAULT_SYNTHETIC_FHIR_DATASET = Path(
+    "datasets/evaluation/synthetic-fhir-v1/benchmark.json"
+)
 
 
 def main() -> int:
@@ -34,6 +38,18 @@ def main() -> int:
         subcommands,
         "compare-heldout-retrieval",
         "heldout-retrieval.json",
+    )
+    synthetic_fhir = subcommands.add_parser(
+        "synthetic-fhir",
+        help="Run the in-memory synthetic-FHIR regression benchmark.",
+    )
+    synthetic_fhir.add_argument(
+        "--dataset",
+        default=str(_DEFAULT_SYNTHETIC_FHIR_DATASET),
+        help="Versioned synthetic-FHIR benchmark JSON; never a real patient input.",
+    )
+    synthetic_fhir.add_argument(
+        "--output", help="Optional JSON report path; stdout is always written."
     )
     trec_lexical = subcommands.add_parser(
         "trec-lexical",
@@ -91,6 +107,7 @@ def main() -> int:
                 "parser": evaluate_parser_dataset,
                 "verify-frozen": verify_frozen_dataset,
                 "compare-heldout-retrieval": compare_held_out_retrieval_dataset,
+                "synthetic-fhir": evaluate_synthetic_fhir_benchmark,
             }[args.command](dataset)
     except (EvaluationDatasetError, TrecEvaluationError) as error:
         parser.error(str(error))
