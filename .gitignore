@@ -1,6 +1,11 @@
 # Environment and secrets
 .env
 
+# Local planning and retrieval-analysis notes are intentionally not published.
+IMPLEMENTATION_ROADMAP.md
+SEARCH_RETRIEVAL_STATUS.md
+SEARCH_RETRIEVAL_ANALYSIS_REPORT.md
+
 # Python
 __pycache__/
 *.py[cod]
